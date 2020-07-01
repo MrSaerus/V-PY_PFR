@@ -59,15 +59,15 @@ list_area = [
 class Main(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
-        self.init_main()
+        #self.init_main()
         #self.tabs()
+        self.left_tabs()
 
     def tabs(self):
         FunTab = ttk.Notebook(root)
+
         i = 0
-        tab = 'tab_'
         for area_name in list_area:
-            #tab_1 = ttk.Frame(FunTab)
             globals()['tab_%s' % i] = ttk.Frame(FunTab)
             FunTab.add(globals()['tab_%s' % i], text=area_name)
             ttk.Label(globals()['tab_%s' % i], text=area_name).grid(column=0, row=0, padx=30, pady=30)
@@ -75,19 +75,28 @@ class Main(tk.Frame):
         FunTab.pack(expand=1, fill='both')
 
         #olds
+
         #tab_2 = ttk.Frame(FunTab)
         #FunTab.add(tab_2, text='Ленинский район')
         #FunTab.pack(expand=1, fill='both')
-        # ttk.Label(tab_2, text="Lets dive into the world of computers").grid(column=0, row=0, padx=30, pady=30)
+        #ttk.Label(tab_2, text="Lets dive into the world of computers").grid(column=0, row=0, padx=30, pady=30)
 
     def left_tabs(self):
-        dd = 1
+        style = ttk.Style(root)
+        style.configure('lefttab.TNotebook', tabposition='ws')
+
+        notebook = ttk.Notebook(root, style='lefttab.TNotebook')
+        i = 0
+        for area_name in list_area:
+            globals()['tab_%s' % i] = tk.Frame(notebook, bg='red', width=200, height=200)
+            notebook.add(globals()['tab_%s' % i], text=area_name)
+            i += 1
+        notebook.pack()
 
     def init_main(self):
         toolbar = tk.Frame(bg='#f5ad42', bd=2)
         toolbar.pack(side=tk.TOP, fill=tk.X)
-        btn_open_dialog = tk.Button(toolbar, text="Камера", command=self.open_dialog, bg='#4287f5', bd=0,
-                                    compound=tk.TOP)
+        btn_open_dialog = tk.Button(toolbar, text="Камера", command=self.open_dialog, bg='#4287f5', bd=0, compound=tk.TOP)
         btn_open_dialog.pack(side=tk.LEFT)
 
     def open_dialog(self):
@@ -114,3 +123,4 @@ if __name__ == "__main__":
     root.geometry("1280x720+300+200")
     # root.resizable(False, False)
     root.mainloop()
+#print(globals())
