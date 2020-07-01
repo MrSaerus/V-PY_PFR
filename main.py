@@ -88,7 +88,7 @@ class Main(tk.Frame):
         notebook = ttk.Notebook(root, style='lefttab.TNotebook')
         i = 0
         for area_name in list_area:
-            globals()['tab_%s' % i] = tk.Frame(notebook, bg='red', width=200, height=200)
+            globals()['tab_%s' % i] = tk.Frame(notebook, width=200, height=200)
             notebook.add(globals()['tab_%s' % i], text=area_name)
             i += 1
         notebook.pack()
