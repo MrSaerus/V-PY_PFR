@@ -1,61 +1,87 @@
+import sqlite3
+import cv2
 import tkinter as tk
 from tkinter import ttk
 from tkinter import *
 
-import cv2
 
 list_area = [
-    'Абзелиловский район‎',
-    'Альшеевский район‎',
-    'Архангельский район‎',
-    'Аскинский район‎',
-    'Аургазинский район‎',
-    'Баймакский район‎',
-    'Бакалинский район‎',
-    'Балтачевский район',
-    'Белебеевский район‎',
-    'Белокатайский район‎',
-    'Белорецкий район‎',
-    'Бижбулякский район‎',
-    'Бирский район‎',
-    'Благоварский район',
-    'Благовещенский район',
-    'Буздякский район‎',
-    'Гафурийский район',
-    'Давлекановский район',
-    'Дуванский район',
-    'Дюртюлинский район',
-    'Ермекеевский район‎',
-    'Зианчуринский район',
-    'Зилаирский район‎',
-    'Иглинский район‎',
-    'Илишевский район‎',
-    'Ишимбайский район',
-    'Калтасинский район‎',
-    'Караидельский район',
-    'Кармаскалинский район',
-    'Кигинский район',
-    'Краснокамский район',
-    'Кугарчинский район‎',
-    'Кушнаренковский район‎',
-    'Куюргазинский район',
-    'Мелеузовский район',
-    'Мечетлинский район',
-    'Мишкинский район',
-    'Нуримановский район',
-    'Салаватский район‎',
-    'Стерлибашевский район',
-    'Стерлитамакский район‎',
-    'Татышлинский район‎',
-    'Туймазинский район‎',
-    'Уфимский район‎',
-    'Учалинский район',
-    'Фёдоровский район',
-    'Хайбуллинский район',
-    'Чекмагушевский район‎',
-    'Чишминский район',
-    'Шаранский район',
-    'Янаульский район‎'
+    'Баймак и район',
+    'Октябрьский',
+    'Абзелиловский',
+    'Альшеевский',
+    'Архангельский',
+    'Аскинский',
+    'Аургазинский',
+    'Бакалинский',
+    'Балтачевский',
+    'Белокатайский',
+    'Бижбулякский',
+    'Благоварский',
+    'Благовещенск и р-н',
+    'Буздякский',
+    'Бураевский',
+    'Бурзянский',
+    'Гафурийский',
+    'Зилаирский',
+    'Дуванский',
+    'Дюртюли и район',
+    'Дюртюли и район',
+    'Ермекеевский',
+    'Зианчуринский',
+    'Калтасинский',
+    'Иглинский',
+    'Илишевский',
+    'Кармаскалинский',
+    'Караидельский',
+    'Краснокамский',
+    'Кигинский',
+    'Куюргазинский',
+    'Кугарчинский',
+    'Кушнаренковский',
+    'Мишкинский',
+    'Мечетлинский',
+    'Миякинский',
+    'Нуримановский',
+    'Салаватский',
+    'Стерлибашевский',
+    'Стерлитамакский',
+    'Татышлинский',
+    'Уфимский',
+    'Давлеканово и р-н',
+    'Федоровский',
+    'Хайбуллинский',
+    'Чекмагушевский',
+    'Чишминский',
+    'Шаранский',
+    'Янаул и район',
+    'Белебей и район',
+    'Белебей и район',
+    'Белорецк и район',
+    'Белорецк и район',
+    'Бирск и район',
+    'Ишимбай и район',
+    'Кумертау',
+    'Мелеуз и район',
+    'Нефтекамск',
+    'Октябрьский',
+    'Салават',
+    'Стерлитамак',
+    'Стерлитамак',
+    'Стерлитамак',
+    'Туймазы и район',
+    'Сибай',
+    'Учалы и район',
+    'Учалы и район',
+    'Калининский',
+    'Кировский',
+    'Кировский',
+    'Ленинский',
+    'Орджоникидзевский',
+    'Демский',
+    'Агидель',
+    'Советский',
+    'Межгорье'
 ]
 list_area2 = [
     'Абзелиловский район‎',
@@ -63,19 +89,20 @@ list_area2 = [
     'Архангельский район‎',
     'Аскинский район‎'
 ]
+
 class Scrollable(tk.Frame):
     """
       Make a frame scrollable with scrollbar on the right.
       After adding or removing widgets to the scrollable frame,
       call the update() method to refresh the scrollable area.
-   """
+    """
 
-    def __init__(self, frame, width=64):
+    def __init__(self, frame, width=16):
         scrollbar = tk.Scrollbar(frame, width=width)
-        scrollbar.pack(side=tk.LEFT, fill=tk.Y)  # , expand=False)
+        scrollbar.pack(side=tk.LEFT, fill=tk.Y, expand=False)
 
-        self.canvas = tk.Canvas(frame, yscrollcommand=scrollbar.set)
-        self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas = tk.Canvas(frame, yscrollcommand=scrollbar.set, width=180)
+        self.canvas.pack(side=tk.LEFT, fill=tk.Y, expand=False)
 
         scrollbar.config(command=self.canvas.yview)
 
@@ -104,7 +131,8 @@ class Main(tk.Frame):
         super().__init__(root)
         self.init_main()
         #self.tabs()
-        self.left_tabs()
+        self.left_frame()
+        #self.middle_frame()
         #self.rtsp_stream()
 
     def tabs(self):
@@ -123,42 +151,76 @@ class Main(tk.Frame):
                 c += 1
 
             i += 1
-        tabs.pack(expand=1, fill='both')
+        tabs.pack(expand=1, fill=Y)
 
 
-    def left_tabs(self):
+    def left_frame(self):
         body = Frame(root)
         body.pack(expand=1, fill='both')
         scrollable_body = Scrollable(body, width=16)
 
-        style = ttk.Style(scrollable_body)
-        style.configure('lefttab.TNotebook', tabposition='wn')
+        #style = ttk.Style(scrollable_body)
+        #style.configure('lefttab.TNotebook', tabposition='wn')
 
-        tabs = ttk.Notebook(scrollable_body, style='lefttab.TNotebook')
+        #tabs = ttk.Notebook(scrollable_body, style='lefttab.TNotebook')
+        area_list = ttk.Frame(scrollable_body)#, style='TNotebook')
+        cams = ttk.Frame(body, style='TNotebook')
 
         i = 0
         for area_name in list_area:
-            globals()['tab_%s' % i] = tk.Frame(tabs)
-            tabs.add(globals()['tab_%s' % i], text=area_name)
-            c = 0
-            column = 0
-            while c < 4:
-                tk.Label(globals()['tab_%s' % i], text="Камера %s" % c).grid(column=column, row=2, padx=3, pady=3)
-                tabs.button = tk.Button(globals()['tab_%s' % i], command=self.open_dialog, width=20, height=10, bg='#aaaaff').grid(column=column, row=1, padx=3, pady=3)
-                column += 1
-                c += 1
+            #globals()['tab_%s' % i] = tk.Frame(tabs)
+            area_list.button = tk.Button(area_list, command=self.rtsp_cam, text=area_name, width=20, height=2, bg='#cccccc').grid(row=i, padx=20, pady=3)
+            #tabs.add(globals()['tab_%s' % i], text=area_name)
+            #c = 0
+            #column = 0
+            #while c < 4:
+            #    tk.Label(globals()['tab_%s' % i], text="Камера %s" % c).grid(column=column, row=2, padx=3, pady=3)
+            #    tabs.button = tk.Button(globals()['tab_%s' % i], command=self.open_dialog, width=20, height=10, bg='#aaaaff').grid(column=column, row=1, padx=3, pady=3)
+            #    column += 1
+            #    c += 1
             i += 1
+        cam = 0
+        c = 0
+        r = 0
+        while cam < 6:
+            #tk.Button(cams, command=self.rtsp_cam,  width=20, height=10, bg='#aaaaff').grid(column=c, row=1+r, padx=3, pady=3)
+            #CB1P = tk.Frame(root, width=1024, height=768).grid()
+            #CB1P_Image = tk.PhotoImage(file="lcars_C1.png")
+            #CB1P_Image_Pack = tk.Label(CB1P, image=CB1P_Image).grid()
 
-        tabs.pack(expand=1, fill='both')
+            stream_cam = ttk.Frame(cams, width=200, height=200, style='TNotebook').grid(column=c, row=1+r, padx=3, pady=3)
+            stream_Image = cv2.VideoCapture('rtsp://upf834:5896ae@10.2.29.190:554/cam/realmonitor?channel=1&subtype=1')
+
+            tk.Label(cams, text="Камера %s" % cam).grid(column=c, row=2+r, padx=3, pady=3)
+            if c == 2:
+                r += 2
+                c = 0
+            else:
+                c += 1
+            cam += 1
+
+        area_list.pack(expand=1, fill=Y)
+        cams.pack(expand=1, fill='both')
         scrollable_body.update()
 
 
-    def rtsp_cam(self, rtsp_url, name):
-        cam_stream_0 = cv2.VideoCapture(rtsp_url)
+    def middle_frame(self):
+        body = Frame(root)
+        middle = ttk.Notebook(body, style='lefttab.TNotebook')
+        c = 0
+        column = 0
+        while c < 4:
+            tk.Label(middle, text="Камера %s" % c).grid(column=column, row=2, padx=3, pady=3)
+            tk.Button(middle, command=self.open_dialog, width=20, height=10, bg='#aaaaff').grid(column=column, row=1, padx=3, pady=3)
+            column += 1
+            c += 1
+        middle.pack(expand=1, fill='both')
+
+    def rtsp_cam(self):
+        cam_stream_0 = cv2.VideoCapture('rtsp://upf834:5896ae@10.2.29.190:554/cam/realmonitor?channel=1&subtype=1')
         while True:
             cam_0, frame_0 = cam_stream_0.read()
-            cv2.imshow(name, frame_0)
-
+            cv2.imshow('Абзелиловский район‎', frame_0)
             if cv2.waitKey(1) == ord('q'):
                 break
         cam_stream_0.release()
@@ -190,7 +252,7 @@ class Main(tk.Frame):
         btn_open_dialog.pack(side=tk.LEFT)
 
     def open_dialog(self):
-        Main.rtsp_cam(self, 'rtsp://upf834:5896ae@10.2.29.190:554/cam/realmonitor?channel=1&subtype=1', 'Абзелиловский район‎')
+        rtsp_cam()
         #child()
 
 
