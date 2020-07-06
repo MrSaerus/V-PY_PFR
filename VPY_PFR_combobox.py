@@ -36,19 +36,19 @@ def callbackFunc(event):
 
 
 def view_from_base():
-    list_area = []
+    list_areas = []
     c.execute('''SELECT area_title FROM area''')
     rows = c.fetchall()
     for row in rows:
-        list_area.append(row[0])
-    return list_area
+        list_areas.append(row[0])
+    return list_areas
+
 
 list_area = view_from_base()
 labelTop = tk.Label(app, text="Выберите район").grid(column=0, row=0)
 
-comboExample = ttk.Combobox(app, values= list_area, state="readonly")
+comboExample = ttk.Combobox(app, values=list_area, state="readonly")
 comboExample.grid(column=0, row=1)
 comboExample.current(0)
 comboExample.bind("<<ComboboxSelected>>", callbackFunc)
-#print(comboExample.current(), comboExample.get())
 app.mainloop()
