@@ -5,91 +5,6 @@ from tkinter import ttk
 from tkinter import *
 
 
-list_area = [
-    'Баймак и район',
-    'Октябрьский',
-    'Абзелиловский',
-    'Альшеевский',
-    'Архангельский',
-    'Аскинский',
-    'Аургазинский',
-    'Бакалинский',
-    'Балтачевский',
-    'Белокатайский',
-    'Бижбулякский',
-    'Благоварский',
-    'Благовещенск и р-н',
-    'Буздякский',
-    'Бураевский',
-    'Бурзянский',
-    'Гафурийский',
-    'Зилаирский',
-    'Дуванский',
-    'Дюртюли и район',
-    'Дюртюли и район',
-    'Ермекеевский',
-    'Зианчуринский',
-    'Калтасинский',
-    'Иглинский',
-    'Илишевский',
-    'Кармаскалинский',
-    'Караидельский',
-    'Краснокамский',
-    'Кигинский',
-    'Куюргазинский',
-    'Кугарчинский',
-    'Кушнаренковский',
-    'Мишкинский',
-    'Мечетлинский',
-    'Миякинский',
-    'Нуримановский',
-    'Салаватский',
-    'Стерлибашевский',
-    'Стерлитамакский',
-    'Татышлинский',
-    'Уфимский',
-    'Давлеканово и р-н',
-    'Федоровский',
-    'Хайбуллинский',
-    'Чекмагушевский',
-    'Чишминский',
-    'Шаранский',
-    'Янаул и район',
-    'Белебей и район',
-    'Белебей и район',
-    'Белорецк и район',
-    'Белорецк и район',
-    'Бирск и район',
-    'Ишимбай и район',
-    'Кумертау',
-    'Мелеуз и район',
-    'Нефтекамск',
-    'Октябрьский',
-    'Салават',
-    'Стерлитамак',
-    'Стерлитамак',
-    'Стерлитамак',
-    'Туймазы и район',
-    'Сибай',
-    'Учалы и район',
-    'Учалы и район',
-    'Калининский',
-    'Кировский',
-    'Кировский',
-    'Ленинский',
-    'Орджоникидзевский',
-    'Демский',
-    'Агидель',
-    'Советский',
-    'Межгорье'
-]
-list_area2 = [
-    'Абзелиловский район‎',
-    'Альшеевский район‎',
-    'Архангельский район‎',
-    'Аскинский район‎'
-]
-
 class Scrollable(tk.Frame):
     """
       Make a frame scrollable with scrollbar on the right.
@@ -126,10 +41,12 @@ class Scrollable(tk.Frame):
         self.update_idletasks()
         self.canvas.config(scrollregion=self.canvas.bbox(self.windows_item))
 
+
 class Main(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
         #self.init_main()
+        self.db = db
         self.combobox_list()
         #self.tabs()
         #self.left_frame()
@@ -137,19 +54,19 @@ class Main(tk.Frame):
         #self.middle_frame()
         #self.rtsp_stream()
 
+    def insert_record(self):
+        self.db.add_to_base('test area')
+
+    def view_from_base(self):
+        list_area = []
+        self.db.c.execute('''SELECT area_title FROM area''')
+        rows = self.db.c.fetchall()
+        for row in rows:
+            list_area.append(row[0])
+        return list_area
+
     def combobox_list(self):
         app = Frame(root)
-        labelTop = tk.Label(app, text="Выберите район")
-        labelTop.grid(column=0, row=0)
-
-        comboExample = ttk.Combobox(app, value = list_area, state="readonly")
-        #print(dict(comboExample))
-        comboExample.grid(column=0, row=1)
-        comboExample.current(1)
-
-        #print(comboExample.current(), comboExample.get())
-
-
         def callbackFunc(event):
             def ret_cams(area):
                 return area + ('@')
@@ -158,17 +75,22 @@ class Main(tk.Frame):
             r = 0
             while cam < 6:
                 ttk.Frame(app, width=200, height=200, style='TNotebook').grid(column=c, row=2 + r, padx=3, pady=3)
-                tk.Label(app, text="Камера %s %s" % (cam, ret_cams(comboExample.get()))).grid(column=c, row=3 + r, padx=3, pady=3)
+                tk.Button(app, text="Камера %s %s" % (cam, comboExample.get()), bg='#aaaaff').grid(column=c, row=3 + r, padx=3, pady=3)
+                #tk.Label(app, text="Камера %s %s" % (cam, ret_cams(comboExample.get()))).grid(column=c, row=4 + r, padx=3, pady=3)
                 if c == 2:
-                    r += 2
+                    r += 3
                     c = 0
                 else:
                     c += 1
                 cam += 1
-            #print(comboExample.get())
+        list_area = self.view_from_base()
+        labelTop = tk.Label(app, text="Выберите район")
+        labelTop.grid(column=0, row=0)
+        comboExample = ttk.Combobox(app, value=list_area, state="readonly")
+        comboExample.grid(column=0, row=1)
+        comboExample.current(0)
         comboExample.bind("<<ComboboxSelected>>", callbackFunc)
         app.pack(expand=1, fill='both')
-
 
     def tabs(self):
         tabs = ttk.Notebook(root)
@@ -243,7 +165,6 @@ class Main(tk.Frame):
         cams.pack(expand=1, fill='both')
         scrollable_body.update()
 
-
     def middle_frame(self):
         body = Frame(root)
         middle = ttk.Notebook(body, style='lefttab.TNotebook')
@@ -309,12 +230,25 @@ class child(tk.Toplevel):
         self.focus_set()
 
 
+class DataBasa:
+    def __init__(self):
+        self.conn = sqlite3.connect('base.db')
+        self.c = self.conn.cursor()
+        self.c.execute('''CREATE TABLE IF NOT EXISTS area (id integer primary key, area_title text)''')
+        self.conn.commit()
+
+    def add_to_base(self, area):
+        self.c.execute('''INSERT INTO area(area_title) VALUES (?)''', [area])
+        self.conn.commit()
+
+
 if __name__ == "__main__":
     root = tk.Tk()
+    db = DataBasa()
     app = Main(root)
-    app.pack()
+    #app.pack()
     root.title("V-PY ПФР")
     root.geometry("1200x720+1+1")
-    # root.resizable(False, False)
+    #root.resizable(False, False)
     root.mainloop()
 #print(globals())
