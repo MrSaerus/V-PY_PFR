@@ -18,15 +18,25 @@ def add_to_base(area):
 
 
 def callbackFunc(event):
+    the_selection0 = event.widget.get()
+    the_selection1 = event.widget
+    print(the_selection0)
+    print(the_selection1)
+
+
     def ret_cams(area):
         return area + ('@')
     cam = 0
     c = 0
     r = 0
     while cam < 6:
-        ttk.Frame(app, width=200, height=200, style='TNotebook').grid(column=c, row=2 + r, padx=3, pady=3)
-        tk.Button(app, text="Камера %s %s" % (cam, comboExample.get()), bg='#aaaaff').grid(column=c, row=3 + r, padx=3, pady=3)
-        # tk.Label(app, text="Камера %s %s" % (cam, ret_cams(comboExample.get()))).grid(column=c, row=4 + r, padx=3, pady=3)
+        frame = ttk.Frame(app, width=200, height=200, style='TNotebook', name="frame")
+        frame.grid(column=c, row=2 + r, padx=3, pady=3)
+
+        button = tk.Button(app, text="Камера %s %s" % (cam, comboExample.get()), bg='#aaaaff', name="button")
+        button.grid(column=c, row=3 + r, padx=3, pady=3)
+
+        #tk.Label(app, text="Камера %s %s" % (cam, ret_cams(comboExample.get()))).grid(column=c, row=4 + r, padx=3, pady=3)
         if c == 2:
             r += 3
             c = 0
@@ -43,11 +53,10 @@ def view_from_base():
         list_areas.append(row[0])
     return list_areas
 
-
 list_area = view_from_base()
 labelTop = tk.Label(app, text="Выберите район").grid(column=0, row=0)
 
-comboExample = ttk.Combobox(app, values=list_area, state="readonly")
+comboExample = ttk.Combobox(app, values=list_area, state="readonly", name="box")
 comboExample.grid(column=0, row=1)
 comboExample.current(0)
 comboExample.bind("<<ComboboxSelected>>", callbackFunc)
