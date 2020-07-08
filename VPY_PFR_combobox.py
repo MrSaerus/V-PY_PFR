@@ -9,40 +9,41 @@ app.geometry("1030x720+1+1")
 
 conn = sqlite3.connect('base.db')
 c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS AREAS (id integer primary key, CODE integer, AREA text, IP text, PORT integer, LOGIN text, PASSWORD text, CAMS integer , MODE text)''')
-c.execute('''CREATE TABLE IF NOT EXISTS area (id integer primary key, area_title text)''')
-c.execute('''CREATE TABLE IF NOT EXISTS cams (id integer primary key, cam_title text, cam_url text, id_area integer, FOREIGN  KEY (id_area) REFERENCES area(id))''')
+c.execute('''CREATE TABLE IF NOT EXISTS area (id integer primary key, code text, area_title text)''')
+c.execute('''CREATE TABLE IF NOT EXISTS cams (
+                                                id integer primary key,
+                                                code text, 
+                                                ip text, 
+                                                port integer, 
+                                                login text, 
+                                                password text,
+                                                num_cams integer,
+                                                type_conn text,
+                                                id_area integer, 
+                                                FOREIGN  KEY (id_area) REFERENCES area(id))
+        ''')
 conn.commit()
 
 
-def RTSP_URL(IP, LOGIN, PASS, MODE, CAMS):
-    if MODE == 'NetSurveillance':
-        url = f'rtsp://{IP}:554/user={LOGIN}&password={PASS}&channel={CAMS}&stream=1.sdp?real_stream--rtp-caching=100'
-    elif MODE == 'WebService':
-        url = f'rtsp://{LOGIN}:{PASS}@{IP}:554/cam/realmonitor?channel={CAMS}&subtype=1'
-
+def rtsp_url(ip, port, login, password, type_conn, num_cams):
+    if type_conn == 'NetSurveillance':
+        url = f'rtsp://{ip}:{port}/user={login}&password={password}&channel={num_cams}&stream=1.sdp?real_stream--rtp-caching=100'
+    elif type_conn == 'WebService':
+        url = f'rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1'
     else:
         url = 'none'
-    print(url)
     return url
 
-def get_cams_from_area(id_area):
-    dict_current_area = {}
-    c.execute("SELECT * FROM cams WHERE id_area = (?)", [id_area])
-    rows = c.fetchall()
-    for row in rows:
-        dict_current_area[row[1]] = '%s' % row[2]
-    return dict_current_area
 
-def get_cams_from_areas(id_area):
-    c.execute("SELECT * FROM areas WHERE id = (?)", [id_area])
+def get_cams_from_area(id_area):
+    c.execute("SELECT * FROM cams WHERE id_area = (?)", [id_area])
     rows = c.fetchall()
     return rows
 
 
 def view_from_base():
     dict_areas = {}
-    c.execute('''SELECT * FROM areas''')
+    c.execute('''SELECT * FROM area''')
     rows = c.fetchall()
     for row in rows:
         dict_areas[row[0]] = '%s' % row[2]
@@ -60,8 +61,6 @@ def add_area_to_cam(cam_title, cam_url, id_area):
 
 
 def rtsp_cam(title_cams, url_cams):
-    #cam_stream_0 = cv2.VideoCapture('rtsp://upf834:5896ae@10.2.29.190:554/cam/realmonitor?channel=1&subtype=1')
-    #cam_stream_0 = cv2.VideoCapture('rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov')
     cam_stream_0 = cv2.VideoCapture(url_cams)
     while True:
         cam_0, frame_0 = cam_stream_0.read()
@@ -74,38 +73,40 @@ def rtsp_cam(title_cams, url_cams):
 
 def return_cams(event):
     the_selection0 = event.widget.get()
-    #the_selection1 = event.widget
     id_area = list(dict_area.keys())[list(dict_area.values()).index(the_selection0)]
-    cam = 0
+    cam = 1
+    step = 0
     col = 0
     row = 0
-    #dict_cams = get_cams_from_area(id_area)
-    row_area = get_cams_from_areas(id_area)
-    #for key, value in dict_cams.items():
+    row_area = get_cams_from_area(id_area)
     for rows in row_area:
         id = rows[0]
-        areas = rows[2]
-        ip = rows[3]
-        login = rows[5]
-        password = rows[6]
-        cams = rows[7]
-        mode = rows[8]
-
-    while cam < 10:
-        frame = ttk.Frame(app, width=200, height=200, style='TNotebook', name="frame_%s" % cam)
-        frame.grid(column=col, row=2 + row, padx=3, pady=3)
-        URL = RTSP_URL(ip, login, password, mode, cam)
-        #button = tk.Button(app, command=lambda key=key, value=value: rtsp_cam(key, value), text="Камера %s" % key, bg='#aaaaff', name="button_%s" % cam)
-        button = tk.Button(app, command=lambda areas=areas, URL=URL: rtsp_cam(areas, URL), text="Камера %s" % cam,
-                           bg='#aaaaff', name="button_%s" % cam)
-        #print(key, ' = ', value)
-        button.grid(column=col, row=3 + row, padx=3, pady=3)
-        if col == 4:
-            row += 3
-            col = 0
+        code = rows[1]
+        ip = rows[2]
+        port = rows[3]
+        login = rows[4]
+        password = rows[5]
+        num_cams = rows[6]
+        type_conn = rows[7]
+        if rtsp_url(ip, port, login, password, type_conn, num_cams) != 'none':
+            while cam < num_cams+1:
+                frame = ttk.Frame(app, width=200, height=200, style='TNotebook', name="frame_%s_%s" % (cam, step))
+                frame.grid(column=col, row=2 + row, padx=3, pady=3)
+                url = rtsp_url(ip, port, login, password, type_conn, cam)
+                button = tk.Button(app, command=lambda the_selection0=the_selection0, url=url: rtsp_cam(the_selection0, url),
+                                   text="Камера %s_%s" % (cam, step),
+                                   bg='#aaaaff', name="button_%s_%s" % (cam, step))
+                button.grid(column=col, row=3 + row, padx=3, pady=3)
+                if col == 4:
+                    row += 3
+                    col = 0
+                else:
+                    col += 1
+                cam += 1
+            step += 1
+            cam = 1
         else:
-            col += 1
-        cam += 1
+            tk.Label(app, text="Cams not supported", name="frame_%s" % id).grid(column=2, row=1, padx=3, pady=3)
 
 
 dict_area = view_from_base()

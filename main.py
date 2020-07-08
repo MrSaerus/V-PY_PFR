@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import *
 
+list_area =[]
 
 class Scrollable(tk.Frame):
     """
@@ -45,12 +46,12 @@ class Scrollable(tk.Frame):
 class Main(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
-        #self.init_main()
+        self.init_main()
         self.db = db
-        self.combobox_list()
+        #self.combobox_list()
         #self.tabs()
         #self.left_frame()
-        #self.left_frame_tabs()
+        self.left_frame_tabs()
         #self.middle_frame()
         #self.rtsp_stream()
 
@@ -118,7 +119,6 @@ class Main(tk.Frame):
         style.configure('lefttab.TNotebook', tabposition='wn')
 
         tabs = ttk.Notebook(scrollable_body, style='lefttab.TNotebook')
-        cams = ttk.Frame(body)
         i = 0
         for area_name in list_area:
              globals()['tab_%s' % i] = tk.Frame(tabs)
@@ -214,8 +214,8 @@ class Main(tk.Frame):
         btn_open_dialog.pack(side=tk.LEFT)
 
     def open_dialog(self):
-        self.rtsp_cam()
-        #child()
+        #self.rtsp_cam()
+        child()
 
 
 class child(tk.Toplevel):
