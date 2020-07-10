@@ -2,7 +2,7 @@ import os, sys, subprocess, cv2, sqlite3, time
 import tkinter as tk
 from tkinter import ttk, PhotoImage,Menu
 from PIL import ImageTk, Image
-from pythonping import ping
+
 
 
 class DBInOu:
@@ -92,25 +92,8 @@ class MainFrame(tk.Frame):
         super().__init__(root)
         self.db = db
         self.snap = snap
-        #self.top_frame()
         self.main_frame()
         self.bottom_frame()
-
-    def top_frame(self):
-        toolbar = tk.Frame(bd=2)
-        toolbar.pack(side=tk.TOP, fill=tk.X)
-        btn_open_dialog = tk.Button(toolbar, text="Тест камер", command=self.open_modal, bd=0, compound=tk.TOP)
-        update = tk.Button(toolbar, text="Настройки", bd=0, compound=tk.TOP)
-        help = tk.Button(toolbar, text="Помощь", bd=0, compound=tk.TOP)
-        exits = tk.Button(toolbar, text="Выход", command=sys.exit, bd=0, compound=tk.TOP)
-        
-        btn_open_dialog.pack(side=tk.LEFT)
-        update.pack(side=tk.LEFT)
-        help.pack(side=tk.LEFT)
-        exits.pack(side=tk.RIGHT)
-
-    def open_modal(self):
-        TopFrame()
 
     def update_area_cams(self):
         taskkill = ['taskkill', '/IM', 'ffmpeg.exe', '/F']
@@ -219,17 +202,21 @@ class MainFrame(tk.Frame):
 
     def main_frame(self):
         app = tk.Frame(root, width=50)
-        list_area = self.db.get_area()
-        tk.Label(app, text="Выберите район").grid(column=0, row=0)
-        comboExample = ttk.Combobox(app, values=list(list_area.values()), state="readonly", name="box")
-        comboExample.grid(column=0, row=1, padx=3, pady=3)
-        comboExample.current(0)
-        comboExample.bind("<<ComboboxSelected>>", self.return_cams)
+        if self.db.get_area():
+            list_area = self.db.get_area()
+            tk.Label(app, text="Выберите район").grid(column=0, row=0)
+            comboExample = ttk.Combobox(app, values=list(list_area.values()), state="readonly", name="box")
+            comboExample.grid(column=0, row=1, padx=3, pady=3)
+            comboExample.current(0)
+            comboExample.bind("<<ComboboxSelected>>", self.return_cams)
 
-        update = tk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), bd=0, compound=tk.TOP)
-        update.grid(column=1, row=1, padx=3, pady=3)
+            update = tk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), bd=0, compound=tk.TOP)
+            update.grid(column=1, row=1, padx=3, pady=3)
+            app.pack(fill=tk.BOTH)
+        else:
+            tk.Label(app, text="База данных пуcта").grid(column=0, row=0)
+            app.pack(fill=tk.BOTH)
 
-        app.pack(fill=tk.BOTH)
     def bottom_frame(self):
         console = tk.Frame()
         console.pack(side=tk.BOTTOM, fill=tk.X)
@@ -238,13 +225,13 @@ class MainFrame(tk.Frame):
         console.pack(side=tk.BOTTOM, fill=tk.X)
 
 
-class TopFrame(tk.Toplevel):
+class TestConnect(tk.Toplevel):
     def __init__(self):
         super().__init__(root)
         self.db = db
-        self.add_cams()
+        self.registrators()
 
-    def add_cams(self):
+    def registrators(self):
         app = tk.Frame(self, name='app')
         app.pack(expand=1, fill=tk.BOTH)
         scrollable_body = Scrollable(app, width=16)
@@ -276,44 +263,52 @@ class TopFrame(tk.Toplevel):
             r += 1
         cam.pack(fill=tk.BOTH)
         scrollable_body.update()
-        self.title("AddCams ПФР")
+        self.title("Проверка регистраторов")
         self.geometry("550x800+300+50")
         self.grab_set()
         self.focus_set()
 
-def donothing():
-   print('0')
+    def check(self):
+        app = tk.Frame(self, name='app')
+        app.pack(expand=1, fill=tk.BOTH)
+
+        self.title("test")
+        self.geometry("550x800+300+50")
+        self.grab_set()
+        self.focus_set()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
+    db = DBInOu()
+
     menubar = Menu(root)
     cfgmenu = Menu(menubar, tearoff=0)
-    cfgmenu.add_command(label="Редактировать/добавить районы", command=donothing)
-    cfgmenu.add_command(label="Редактировать/добавить регистраторы/камеры", command=donothing)
-    cfgmenu.add_command(label="Настрока программы", command=donothing)
+    cfgmenu.add_command(label="Редактировать/добавить районы", command=print('0'))
+    cfgmenu.add_command(label="Редактировать/добавить регистраторы/камеры", command=print('0'))
+    cfgmenu.add_command(label="Настрока программы", command=print('0'))
     cfgmenu.add_separator()
     cfgmenu.add_command(label="Exit", command=root.quit)
 
     menubar.add_cascade(label="Настройки", menu=cfgmenu)
 
     testmenu = Menu(menubar, tearoff=0)
-    testmenu.add_command(label="Вывод всех регистраторов", command=donothing)
-    testmenu.add_command(label="Проверка доступности регистраторов", command=TopFrame)
+    testmenu.add_command(label="Вывод всех регистраторов", command=print('0'))
+    testmenu.add_command(label="Проверка доступности регистраторов", command=TestConnect)
     testmenu.add_separator()
-    testmenu.add_command(label="Проверка потока видеорегистарора", command=donothing)
-    testmenu.add_command(label="Тестирование левого потока", command=donothing)
+    testmenu.add_command(label="Проверка потока видеорегистарора", command=lambda: TestConnect.check(tk.Tk()))
+    testmenu.add_command(label="Тестирование левого потока", command=print('0'))
 
     menubar.add_cascade(label="Тестирование", menu=testmenu)
 
     helpmenu = Menu(menubar, tearoff=0)
-    helpmenu.add_command(label="Параметры запуска", command=donothing)
-    helpmenu.add_command(label="О программе", command=donothing)
+    helpmenu.add_command(label="Параметры запуска", command=print('0'))
+    helpmenu.add_command(label="О программе", command=print('0'))
 
     menubar.add_cascade(label="Помощь", menu=helpmenu)
 
     root.config(menu=menubar)
 
-    db = DBInOu()
     snap = GetSnap()
     app = MainFrame(root)
     root.title("ViewCam ПФР")
