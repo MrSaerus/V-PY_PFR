@@ -1,4 +1,4 @@
-import os, sys, subprocess, cv2, sqlite3, time
+import os, sys, subprocess, cv2, sqlite3, time, socket, nmap
 import tkinter as tk
 from tkinter import ttk, PhotoImage
 from PIL import ImageTk, Image
@@ -85,6 +85,7 @@ class GetSnap:
         ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-i', rtsp_url, '-frames', '1', '-f', 'image2', img]
         subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+
 class MainFrame(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
@@ -110,28 +111,18 @@ class MainFrame(tk.Frame):
         TopFrame()
 
     def update_area_cams(self):
-        #time.sleep(10)
         taskkill = ['taskkill', '/IM', 'ffmpeg.exe', '/F']
         subprocess.Popen(taskkill, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        print('taskkill executed')
+        print('Info: taskkill executed')
 
     def rtsp_url(self, ip, port, login, password, type_conn, num_cams):
-        if os.name == "nt": t_ping = "ping -n 1 "
-        else: t_ping = "ping -c 1 "
-        if os.system(t_ping + ip) == 0:
-        #if 0 == 0:
-            if type_conn == 'NetSurveillance':
-                url = f'rtsp://{ip}:{port}/user={login}&password={password}&channel={num_cams}&stream=1.sdp?real_stream--rtp-caching=100'
-            elif type_conn == 'WebService':
-                url = f'rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1'
-            else:
-                url = 'none'
-            #print(url)
-            return url
-            print('Регистратор доступен')
+        if type_conn == 'NetSurveillance':
+            url = f'rtsp://{ip}:{port}/user={login}&password={password}&channel={num_cams}&stream=1.sdp?real_stream--rtp-caching=100'
+        elif type_conn == 'WebService':
+            url = f'rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1'
         else:
-            print('Регистратор НЕ доступен')
-            pass
+            url = 'none'
+        return url
 
     def rtsp_cam(self, title_cams, url_cams):
         try:
@@ -144,8 +135,7 @@ class MainFrame(tk.Frame):
             cam_stream_0.release()
             cv2.destroyAllWindows()
         except cv2.error:
-            print('error connection')
-
+            print('Error: connection timeout')
 
     def return_cams(self, event):
         app = tk.Frame(root, name='app')
@@ -169,42 +159,54 @@ class MainFrame(tk.Frame):
             password = rows[5]
             num_cams = rows[6]
             type_conn = rows[7]
-            if self.rtsp_url(ip, port, login, password, type_conn, num_cams) != 'none':
-                while cam < num_cams + 1:
-                    url = self.rtsp_url(ip, port, login, password, type_conn, cam)
-                    img = f'{code}_{cam}_{step}.jpg'
-                    snap.get_images(url, img)
 
-                    frame = ttk.Frame(tabs, width=200, height=200, style='TNotebook', name="frame_%s_%s" % (cam, step))
-                    frame.grid(column=col, row=2 + row, padx=3, pady=3)
-                    try:
-                        globals()['pill_image_%s_%s_%s' % (code, cam, step)] = Image.open('C:\\Users\\002AbdulkhalikovMA\\PycharmProjects\\V-PY_PFR\\SnapShot\\%s_%s_%s.jpg' % (code, cam, step))
-                        globals()['pill_image_%s_%s_%s' % (code, cam, step)] = globals()['pill_image_%s_%s_%s' % (code, cam, step)].resize((200, 200), Image.ANTIALIAS)
-                        globals()['pill_image_%s_%s_%s' % (code, cam, step)] = ImageTk.PhotoImage(globals()['pill_image_%s_%s_%s' % (code, cam, step)] )
+            if nm[ip].has_tcp(port):
+                print('Info: connected')
+                if self.rtsp_url(ip, port, login, password, type_conn, num_cams) != 'none':
+                    while cam < num_cams + 1:
+                        url = self.rtsp_url(ip, port, login, password, type_conn, cam)
+                        img = f'{code}_{cam}_{step}.jpg'
+                        snap.get_images(url, img)
 
-                        globals()['lable_%s_%s_%s' % (code, cam, step)] = tk.Label(frame, width=200, height=200, image=globals()['pill_image_%s_%s_%s' % (code, cam, step)])
-                        globals()['lable_%s_%s_%s' % (code, cam, step)].pack(fill=tk.BOTH)
-                    except FileNotFoundError:
-                        print(f'Error: {code} FileNotFoundError')
-                        pass
-                    button = tk.Button(tabs,
-                                       command=lambda area_name=area_name, url=url: self.rtsp_cam(area_name, url),
-                                       text="Камера %s_%s" % (cam, step),
-                                       bg='#aaaaff', name="button_%s_%s" % (cam, step))
-                    button.grid(column=col, row=3 + row, padx=3, pady=3)
-                    if col == 4:
-                        row += 3
-                        col = 0
-                    else:
-                        col += 1
-                    cam += 1
-                step += 1
-                cam = 1
-                tk.Label(tabs, text="Cams supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
+                        frame = ttk.Frame(tabs, width=200, height=200, style='TNotebook',
+                                          name="frame_%s_%s" % (cam, step))
+                        frame.grid(column=col, row=2 + row, padx=3, pady=3)
+                        try:
+                            pill_image = Image.open(
+                                'C:\\Users\\002AbdulkhalikovMA\\PycharmProjects\\V-PY_PFR\\SnapShot\\%s_%s_%s.jpg' % (
+                                code, cam, step))
+                            pill_image = pill_image.resize((200, 200), Image.ANTIALIAS)
+                            globals()['pill_image_%s_%s_%s' % (code, cam, step)] = ImageTk.PhotoImage(pill_image)
+
+                            globals()['lable_%s_%s_%s' % (code, cam, step)] = tk.Label(frame, width=200, height=200,
+                                                                                       image=globals()[
+                                                                                           'pill_image_%s_%s_%s' % (
+                                                                                           code, cam, step)])
+                            globals()['lable_%s_%s_%s' % (code, cam, step)].pack(fill=tk.BOTH)
+                        except FileNotFoundError:
+                            print(f'Error: {code} Image Not Found')
+                            pass
+                        button = tk.Button(tabs,
+                                           command=lambda area_name=area_name, url=url: self.rtsp_cam(area_name, url),
+                                           text="Камера %s_%s" % (cam, step),
+                                           bg='#aaaaff', name="button_%s_%s" % (cam, step))
+                        button.grid(column=col, row=3 + row, padx=3, pady=3)
+                        if col == 4:
+                            row += 3
+                            col = 0
+                        else:
+                            col += 1
+                        cam += 1
+                    step += 1
+                    cam = 1
+                    tk.Label(tabs, text="Cams supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
+                else:
+                    tk.Label(tabs, text="Cams not supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
+                tabs.pack(expand=1, fill=tk.Y)
+                scrollable_body.update()
             else:
-                tk.Label(tabs, text="Cams not supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
-        tabs.pack(expand=1, fill=tk.Y)
-        scrollable_body.update()
+                print('Error: connection timeout')
+                break
 
     def main_frame(self):
         app = tk.Frame(root, width=50)
@@ -274,6 +276,7 @@ class TopFrame(tk.Toplevel):
 
 if __name__ == "__main__":
     root = tk.Tk()
+    nm = nmap.PortScanner()
     db = DBInOu()
     snap = GetSnap()
     app = MainFrame(root)
