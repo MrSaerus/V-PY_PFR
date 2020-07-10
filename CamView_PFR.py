@@ -1,7 +1,8 @@
-import os, sys, subprocess, cv2, sqlite3, time, socket, nmap
+import os, sys, subprocess, cv2, sqlite3, time
 import tkinter as tk
-from tkinter import ttk, PhotoImage
+from tkinter import ttk, PhotoImage,Menu
 from PIL import ImageTk, Image
+from pythonping import ping
 
 
 class DBInOu:
@@ -82,7 +83,7 @@ class Scrollable(tk.Frame):
 class GetSnap:
     def get_images(self, rtsp_url, cam):
         img = f'SnapShot/{cam}'
-        ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-i', rtsp_url, '-frames', '1', '-f', 'image2', img]
+        ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-y', '-i', rtsp_url, '-frames', '1', '-f', 'image2', img]
         subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
@@ -91,7 +92,7 @@ class MainFrame(tk.Frame):
         super().__init__(root)
         self.db = db
         self.snap = snap
-        self.top_frame()
+        #self.top_frame()
         self.main_frame()
         self.bottom_frame()
 
@@ -100,8 +101,9 @@ class MainFrame(tk.Frame):
         toolbar.pack(side=tk.TOP, fill=tk.X)
         btn_open_dialog = tk.Button(toolbar, text="Тест камер", command=self.open_modal, bd=0, compound=tk.TOP)
         update = tk.Button(toolbar, text="Настройки", bd=0, compound=tk.TOP)
-        help = tk.Button(toolbar, text="Помощ", bd=0, compound=tk.TOP)
+        help = tk.Button(toolbar, text="Помощь", bd=0, compound=tk.TOP)
         exits = tk.Button(toolbar, text="Выход", command=sys.exit, bd=0, compound=tk.TOP)
+        
         btn_open_dialog.pack(side=tk.LEFT)
         update.pack(side=tk.LEFT)
         help.pack(side=tk.LEFT)
@@ -121,7 +123,7 @@ class MainFrame(tk.Frame):
         elif type_conn == 'WebService':
             url = f'rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1'
         else:
-            url = 'none'
+            url = 'NotSupport'
         return url
 
     def rtsp_cam(self, title_cams, url_cams):
@@ -138,11 +140,16 @@ class MainFrame(tk.Frame):
             print('Error: connection timeout')
 
     def return_cams(self, event):
+        if type(event) == str:
+            area_name = globals()['AreaNameTempest']
+        else:
+            area_name = event.widget.get()
+            globals()['AreaNameTempest'] = area_name
         app = tk.Frame(root, name='app')
         app.pack(expand=1, fill=tk.BOTH)
         scrollable_body = Scrollable(app, width=16)
         tabs = tk.Frame(scrollable_body)
-        area_name = event.widget.get()
+
         list_area = self.db.get_area()
         id_area = list(list_area.keys())[list(list_area.values()).index(area_name)]
         cam = 1
@@ -160,9 +167,9 @@ class MainFrame(tk.Frame):
             num_cams = rows[6]
             type_conn = rows[7]
 
-            if nm[ip].has_tcp(port):
-                print('Info: connected')
-                if self.rtsp_url(ip, port, login, password, type_conn, num_cams) != 'none':
+            if os.system("ping -n 1 " + ip) == 0:
+                print('Info: connected to ' + ip)
+                if self.rtsp_url(ip, port, login, password, type_conn, cam) != 'NotSupport':
                     while cam < num_cams + 1:
                         url = self.rtsp_url(ip, port, login, password, type_conn, cam)
                         img = f'{code}_{cam}_{step}.jpg'
@@ -174,17 +181,18 @@ class MainFrame(tk.Frame):
                         try:
                             pill_image = Image.open(
                                 'C:\\Users\\002AbdulkhalikovMA\\PycharmProjects\\V-PY_PFR\\SnapShot\\%s_%s_%s.jpg' % (
-                                code, cam, step))
+                                    code, cam, step))
                             pill_image = pill_image.resize((200, 200), Image.ANTIALIAS)
                             globals()['pill_image_%s_%s_%s' % (code, cam, step)] = ImageTk.PhotoImage(pill_image)
 
                             globals()['lable_%s_%s_%s' % (code, cam, step)] = tk.Label(frame, width=200, height=200,
                                                                                        image=globals()[
                                                                                            'pill_image_%s_%s_%s' % (
-                                                                                           code, cam, step)])
+                                                                                               code, cam, step)])
                             globals()['lable_%s_%s_%s' % (code, cam, step)].pack(fill=tk.BOTH)
                         except FileNotFoundError:
                             print(f'Error: {code} Image Not Found')
+                            print(f'Stream: {url}')
                             pass
                         button = tk.Button(tabs,
                                            command=lambda area_name=area_name, url=url: self.rtsp_cam(area_name, url),
@@ -201,12 +209,13 @@ class MainFrame(tk.Frame):
                     cam = 1
                     tk.Label(tabs, text="Cams supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
                 else:
+                    print('Error: Cams not supported')
                     tk.Label(tabs, text="Cams not supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
-                tabs.pack(expand=1, fill=tk.Y)
-                scrollable_body.update()
             else:
-                print('Error: connection timeout')
-                break
+                print('Error: connection to ' + ip + ' timeout')
+                tk.Label(tabs, text='Error: connection to ' + ip + ' timeout', name="ror").grid(column=0, row=0, padx=3, pady=3)
+            tabs.pack(expand=1, fill=tk.Y)
+            scrollable_body.update()
 
     def main_frame(self):
         app = tk.Frame(root, width=50)
@@ -217,11 +226,10 @@ class MainFrame(tk.Frame):
         comboExample.current(0)
         comboExample.bind("<<ComboboxSelected>>", self.return_cams)
 
-        update = tk.Button(app, text="Обновить", command=self.update_area_cams, bd=0, compound=tk.TOP)
+        update = tk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), bd=0, compound=tk.TOP)
         update.grid(column=1, row=1, padx=3, pady=3)
 
         app.pack(fill=tk.BOTH)
-
     def bottom_frame(self):
         console = tk.Frame()
         console.pack(side=tk.BOTTOM, fill=tk.X)
@@ -273,10 +281,38 @@ class TopFrame(tk.Toplevel):
         self.grab_set()
         self.focus_set()
 
+def donothing():
+   print('0')
 
 if __name__ == "__main__":
     root = tk.Tk()
-    nm = nmap.PortScanner()
+    menubar = Menu(root)
+    cfgmenu = Menu(menubar, tearoff=0)
+    cfgmenu.add_command(label="Редактировать/добавить районы", command=donothing)
+    cfgmenu.add_command(label="Редактировать/добавить регистраторы/камеры", command=donothing)
+    cfgmenu.add_command(label="Настрока программы", command=donothing)
+    cfgmenu.add_separator()
+    cfgmenu.add_command(label="Exit", command=root.quit)
+
+    menubar.add_cascade(label="Настройки", menu=cfgmenu)
+
+    testmenu = Menu(menubar, tearoff=0)
+    testmenu.add_command(label="Вывод всех регистраторов", command=donothing)
+    testmenu.add_command(label="Проверка доступности регистраторов", command=TopFrame)
+    testmenu.add_separator()
+    testmenu.add_command(label="Проверка потока видеорегистарора", command=donothing)
+    testmenu.add_command(label="Тестирование левого потока", command=donothing)
+
+    menubar.add_cascade(label="Тестирование", menu=testmenu)
+
+    helpmenu = Menu(menubar, tearoff=0)
+    helpmenu.add_command(label="Параметры запуска", command=donothing)
+    helpmenu.add_command(label="О программе", command=donothing)
+
+    menubar.add_cascade(label="Помощь", menu=helpmenu)
+
+    root.config(menu=menubar)
+
     db = DBInOu()
     snap = GetSnap()
     app = MainFrame(root)
