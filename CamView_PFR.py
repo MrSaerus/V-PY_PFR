@@ -1,6 +1,6 @@
 import os, sys, subprocess, cv2, sqlite3, time
 import tkinter as tk
-from tkinter import ttk, PhotoImage,Menu
+from tkinter import ttk, PhotoImage, Menu
 from PIL import ImageTk, Image
 
 
@@ -26,6 +26,8 @@ class DBInOu:
     def get_cams(self, id_area):
         if id_area == '*':
             self.c.execute("SELECT * FROM cams")
+        elif id_area == 'test':
+            self.c.execute("SELECT ip, port FROM cams")
         else:
             self.c.execute("SELECT * FROM cams WHERE id_area = (?)", [id_area])
         rows = self.c.fetchall()
@@ -304,28 +306,28 @@ class TestConnect(tk.Toplevel):
         scrollable_body = Scrollable(app, width=16)
         cam = tk.Frame(scrollable_body)
 
-        list_cams = self.db.get_cams('*')
+        list_cams = self.db.get_cams('test')
         r = 1
         c = 0
-        tk.Label(cam, text='id').grid(column=0, row=0)
-        tk.Label(cam, text='code').grid(column=1, row=0)
-        tk.Label(cam, text='ip').grid(column=2, row=0)
-        tk.Label(cam, text='port').grid(column=3, row=0)
-        tk.Label(cam, text='login').grid(column=4, row=0)
-        tk.Label(cam, text='pass').grid(column=5, row=0)
-        tk.Label(cam, text='cams').grid(column=6, row=0)
-        tk.Label(cam, text='method').grid(column=7, row=0)
-        tk.Label(cam, text='id_area').grid(column=8, row=0)
-        tk.Label(cam, text='Test_conn').grid(column=9, row=0)
+        #tk.Label(cam, text='id').grid(column=0, row=0)
+        #tk.Label(cam, text='code').grid(column=1, row=0)
+        tk.Label(cam, text='ip').grid(column=0, row=0)
+        tk.Label(cam, text='port').grid(column=1, row=0)
+        #tk.Label(cam, text='login').grid(column=4, row=0)
+        #tk.Label(cam, text='pass').grid(column=5, row=0)
+        #tk.Label(cam, text='cams').grid(column=6, row=0)
+        #tk.Label(cam, text='method').grid(column=7, row=0)
+        #tk.Label(cam, text='id_area').grid(column=8, row=0)
+        tk.Label(cam, text='Test_conn').grid(column=2, row=0)
         for rows in list_cams:
             for row in rows:
                 tk.Label(cam, text=row).grid(column=c, row=r)
                 c += 1
-            print('Testing ' + rows[2])
-            if os.system("ping -n 1 " + rows[2]) == 0:
-                tk.Label(cam, text='Conn').grid(column=c+1, row=r)
+            print('Testing ' + rows[0])
+            if os.system("ping -n 1 " + rows[0]) == 0:
+                ttk.Label(cam, text='Ok', foreground='green').grid(column=c, row=r)
             else:
-                tk.Label(cam, text='Err').grid(column=c+1, row=r)
+                ttk.Label(cam, text='Error', foreground='red').grid(column=c, row=r)
             c = 0
             r += 1
         cam.pack(fill=tk.BOTH)
@@ -403,42 +405,58 @@ class TestConnect(tk.Toplevel):
             c = 0
             r += 1
         self.title("Редактировать/добавить районы")
-        self.geometry("550x800+300+50")
+        self.geometry("400x800+300+50")
         self.grab_set()
         self.focus_set()
 
         add_edit_area_scroll.pack(expand=1, fill=tk.Y)
-        add_edit_area_scroll.update()
+        scroll.update()
 
     def add_edit_cams(self):
-        add_edit_cams = tk.Frame(self, name='add_edit')
-        add_edit_cams.pack(expand=1, fill=tk.BOTH)
+        add_edit = tk.Frame(self, name='add_edit')
+        add_edit.pack(expand=1, fill=tk.BOTH)
+
+        scroll = Scrollable(add_edit, width=16)
+        add_edit_cams_scroll = tk.Frame(scroll)
+
         list_cams = db.get_cams('*')
         c = 0
-        r = 1
-        tk.Label(add_edit_cams, text='ID').grid(column=0, row=0)
-        tk.Label(add_edit_cams, text='Код района').grid(column=1, row=0)
-        tk.Label(add_edit_cams, text='IP Адрес').grid(column=2, row=0)
-        tk.Label(add_edit_cams, text='Порт').grid(column=3, row=0)
-        tk.Label(add_edit_cams, text='Логин').grid(column=4, row=0)
-        tk.Label(add_edit_cams, text='Пароль').grid(column=5, row=0)
-        tk.Label(add_edit_cams, text='Кол-во Камер').grid(column=6, row=0)
-        tk.Label(add_edit_cams, text='Тип').grid(column=7, row=0)
-        tk.Label(add_edit_cams, text='ID Района').grid(column=8, row=0)
-        tk.Button(add_edit_cams, text='Добавить').grid(column=10, row=0)
+        r = 2
+        ttk.Label(add_edit_cams_scroll, text='ID').grid(column=0, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Код района').grid(column=1, row=0)
+        ttk.Label(add_edit_cams_scroll, text='IP Адрес').grid(column=2, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Порт').grid(column=3, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Логин').grid(column=4, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Пароль').grid(column=5, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Кол-во Камер').grid(column=6, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Тип').grid(column=7, row=0)
+        ttk.Label(add_edit_cams_scroll, text='ID Района').grid(column=8, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Добавить').grid(column=10, row=0)
+        ttk.Label(add_edit_cams_scroll, text='*').grid(column=0, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=1, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=2, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=3, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=4, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=5, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=6, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=7, row=1)
+        ttk.Entry(add_edit_cams_scroll).grid(column=8, row=1)
+        ttk.Button(add_edit_cams_scroll, text='Добавить').grid(column=10, row=1)
         for rows in list_cams:
             for row in rows:
-                tk.Label(add_edit_cams, text=row).grid(column=c, row=r)
+                ttk.Label(add_edit_cams_scroll, text=row).grid(column=c, row=r)
                 c += 1
-            tk.Button(add_edit_cams, text='Редактировать').grid(column=c + 1, row=r)
-            tk.Button(add_edit_cams, text='Удалить').grid(column=c + 2, row=r)
+            ttk.Button(add_edit_cams_scroll, text='Удалить').grid(column=c + 1, row=r)
             c = 0
             r += 1
 
         self.title("Редактировать/добавить районы")
-        self.geometry("700x800+300+50")
+        self.geometry("1200x800+1+1")
         self.grab_set()
         self.focus_set()
+
+        add_edit_cams_scroll.pack(expand=1, fill=tk.Y)
+        scroll.update()
 
 
 if __name__ == "__main__":
