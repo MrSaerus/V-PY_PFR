@@ -4,7 +4,6 @@ from tkinter import ttk, PhotoImage,Menu
 from PIL import ImageTk, Image
 
 
-
 class DBInOu:
     def __init__(self):
         self.connect = sqlite3.connect('base.db')
@@ -32,13 +31,20 @@ class DBInOu:
         rows = self.c.fetchall()
         return rows
 
-    def get_area(self):
-        dict_areas = {}
-        self.c.execute('''SELECT * FROM area''')
-        rows = self.c.fetchall()
-        for row in rows:
-            dict_areas[row[0]] = '%s' % row[2]
-        return dict_areas
+    def get_area(self, switch):
+        if switch == 'dict':
+            dict_areas = {}
+            self.c.execute('''SELECT * FROM area''')
+            rows = self.c.fetchall()
+            for row in rows:
+                dict_areas[row[0]] = '%s' % row[2]
+            return dict_areas
+        elif switch == 'all':
+            self.c.execute('''SELECT * FROM area''')
+            return self.c.fetchall()
+        else:
+            self.c.execute('''SELECT * FROM area where id like (?)''', [switch])
+            return self.c.fetchall()
 
     def add_area(self, code, area_title):
         self.c.execute('''INSERT INTO area(code, area_title) VALUES (?, ?)''', [code, area_title])
@@ -87,11 +93,63 @@ class GetSnap:
         subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
+class TopMenu(tk.Frame):
+    def __init__(self, root):
+        super().__init__(root)
+        self.menu()
+
+    def menu(self):
+        menubar = Menu(root)
+        cfgmenu = Menu(menubar, tearoff=0)
+        cfgmenu.add_command(label="Редактировать/добавить районы",
+                            command=self.add_edit_area)
+        cfgmenu.add_command(label="Редактировать/добавить регистраторы/камеры",
+                            command=self.add_edit_cams)
+        cfgmenu.add_command(label="Настрока программы", command=lambda: print('0'))
+        cfgmenu.add_separator()
+        cfgmenu.add_command(label="Exit", command=root.quit)
+
+        menubar.add_cascade(label="Настройки", menu=cfgmenu)
+
+        testmenu = Menu(menubar, tearoff=0)
+        testmenu.add_command(label="Вывод всех регистраторов", command=lambda: print('0'))
+        testmenu.add_command(label="Проверка доступности регистраторов", command=self.regs)
+        testmenu.add_separator()
+        testmenu.add_command(label="Проверка потока видеорегистарора", command=self.check)
+        testmenu.add_command(label="Тестирование левого потока")
+
+        menubar.add_cascade(label="Тестирование", menu=testmenu)
+
+        helpmenu = Menu(menubar, tearoff=0)
+        # helpmenu.add_command(label="Параметры запуска", command=lambda: print('0'))
+        helpmenu.add_command(label="О программе", command=self.about_frame)
+
+        menubar.add_cascade(label="Помощь", menu=helpmenu)
+
+        root.config(menu=menubar)
+
+    def regs(self):
+        TestConnect('regs')
+
+    def about_frame(self):
+        TestConnect('about')
+
+    def add_edit_area(self):
+        TestConnect('edit_area')
+
+    def add_edit_cams(self):
+        TestConnect('edit_cams')
+
+    def check(self):
+        TestConnect('check')
+
+
 class MainFrame(tk.Frame):
     def __init__(self, root):
         super().__init__(root)
         self.db = db
         self.snap = snap
+
         self.main_frame()
         self.bottom_frame()
 
@@ -133,7 +191,7 @@ class MainFrame(tk.Frame):
         scrollable_body = Scrollable(app, width=16)
         tabs = tk.Frame(scrollable_body)
 
-        list_area = self.db.get_area()
+        list_area = self.db.get_area('dict')
         id_area = list(list_area.keys())[list(list_area.values()).index(area_name)]
         cam = 1
         step = 0
@@ -202,8 +260,8 @@ class MainFrame(tk.Frame):
 
     def main_frame(self):
         app = tk.Frame(root, width=50)
-        if self.db.get_area():
-            list_area = self.db.get_area()
+        if self.db.get_area('dict'):
+            list_area = self.db.get_area('dict')
             tk.Label(app, text="Выберите район").grid(column=0, row=0)
             comboExample = ttk.Combobox(app, values=list(list_area.values()), state="readonly", name="box")
             comboExample.grid(column=0, row=1, padx=3, pady=3)
@@ -214,7 +272,7 @@ class MainFrame(tk.Frame):
             update.grid(column=1, row=1, padx=3, pady=3)
             app.pack(fill=tk.BOTH)
         else:
-            tk.Label(app, text="База данных пуcта").grid(column=0, row=0)
+            tk.Label(app, text="Отсутствуют записи в базе данных").grid(column=0, row=0)
             app.pack(fill=tk.BOTH)
 
     def bottom_frame(self):
@@ -226,10 +284,19 @@ class MainFrame(tk.Frame):
 
 
 class TestConnect(tk.Toplevel):
-    def __init__(self):
+    def __init__(self, menu):
         super().__init__(root)
         self.db = db
-        self.registrators()
+        if menu == 'regs':
+            self.registrators()
+        elif menu == 'check':
+            self.check()
+        elif menu == 'about':
+            self.about_frame()
+        elif menu == 'edit_area':
+            self.add_edit_area()
+        elif menu == 'edit_cams':
+            self.add_edit_cams()
 
     def registrators(self):
         app = tk.Frame(self, name='app')
@@ -272,8 +339,104 @@ class TestConnect(tk.Toplevel):
         app = tk.Frame(self, name='app')
         app.pack(expand=1, fill=tk.BOTH)
 
-        self.title("test")
+        self.title("Проверка потока видеорегистарора")
         self.geometry("550x800+300+50")
+        self.grab_set()
+        self.focus_set()
+
+    def about_frame(self):
+        help_frame = tk.Frame(self, name='app')
+        help_frame.pack(expand=1, fill=tk.BOTH)
+        text = tk.Text(help_frame)
+        text.insert(1.0, "Программа для просмотра камер в районах. "
+                         "\nПараметры запуска:"
+                         "\n    -debug_console - запускает режим вывода информации в консоль программы."
+                         "\n    -gen - генерирует тестовую информацию в базе данных.")
+        text.configure(state='disabled')
+        text.pack()
+
+        self.title("Помощь")
+        self.geometry("550x400+300+50")
+        self.grab_set()
+        self.focus_set()
+
+    def add_edit_area(self):
+        add_edit = tk.Frame(self, name='add_edit')
+        add_edit.pack(expand=1, fill=tk.BOTH)
+
+        scroll = Scrollable(add_edit, width=16)
+        add_edit_area_scroll = tk.Frame(scroll)
+
+        list_areas = db.get_area('all')
+        c = 0
+        r = 2
+        label_1 = ttk.Label(add_edit_area_scroll, text='ID')
+        label_1.grid(column=0, row=0)
+
+        label_2 = ttk.Label(add_edit_area_scroll, text='Код района')
+        label_2.grid(column=1, row=0)
+
+        label_3 = ttk.Label(add_edit_area_scroll, text='Район')
+        label_3.grid(column=2, row=0)
+
+        label_4 = ttk.Label(add_edit_area_scroll, text='Добавить')
+        label_4.grid(column=3, row=0)
+
+        label_5 = ttk.Label(add_edit_area_scroll, text='*')
+        label_5.grid(column=0, row=1)
+
+        entry_1 = ttk.Entry(add_edit_area_scroll)
+        entry_1.grid(column=1, row=1)
+
+        entry_2 = ttk.Entry(add_edit_area_scroll)
+        entry_2.grid(column=2, row=1)
+
+        button = ttk.Button(add_edit_area_scroll, text='Добавить', name="btn_1")
+        button.grid(column=3, row=1)
+        for rows in list_areas:
+            for row in rows:
+                label_1 = tk.Label(add_edit_area_scroll, text=row)
+                label_1.grid(column=c, row=r)
+                c += 1
+            button = ttk.Button(add_edit_area_scroll, text='Удалить', name="btn_%d" % r)
+            button.grid(column=c, row=r)
+            c = 0
+            r += 1
+        self.title("Редактировать/добавить районы")
+        self.geometry("550x800+300+50")
+        self.grab_set()
+        self.focus_set()
+
+        add_edit_area_scroll.pack(expand=1, fill=tk.Y)
+        add_edit_area_scroll.update()
+
+    def add_edit_cams(self):
+        add_edit_cams = tk.Frame(self, name='add_edit')
+        add_edit_cams.pack(expand=1, fill=tk.BOTH)
+        list_cams = db.get_cams('*')
+        c = 0
+        r = 1
+        tk.Label(add_edit_cams, text='ID').grid(column=0, row=0)
+        tk.Label(add_edit_cams, text='Код района').grid(column=1, row=0)
+        tk.Label(add_edit_cams, text='IP Адрес').grid(column=2, row=0)
+        tk.Label(add_edit_cams, text='Порт').grid(column=3, row=0)
+        tk.Label(add_edit_cams, text='Логин').grid(column=4, row=0)
+        tk.Label(add_edit_cams, text='Пароль').grid(column=5, row=0)
+        tk.Label(add_edit_cams, text='Кол-во Камер').grid(column=6, row=0)
+        tk.Label(add_edit_cams, text='Тип').grid(column=7, row=0)
+        tk.Label(add_edit_cams, text='ID Района').grid(column=8, row=0)
+        tk.Button(add_edit_cams, text='Добавить').grid(column=10, row=0)
+        for rows in list_cams:
+            for row in rows:
+                tk.Label(add_edit_cams, text=row).grid(column=c, row=r)
+                c += 1
+            tk.Button(add_edit_cams, text='Редактировать').grid(column=c + 1, row=r)
+            tk.Button(add_edit_cams, text='Удалить').grid(column=c + 2, row=r)
+            c = 0
+            r += 1
+
+        self.title("Редактировать/добавить районы")
+        self.geometry("700x800+300+50")
         self.grab_set()
         self.focus_set()
 
@@ -281,34 +444,7 @@ class TestConnect(tk.Toplevel):
 if __name__ == "__main__":
     root = tk.Tk()
     db = DBInOu()
-
-    menubar = Menu(root)
-    cfgmenu = Menu(menubar, tearoff=0)
-    cfgmenu.add_command(label="Редактировать/добавить районы", command=print('0'))
-    cfgmenu.add_command(label="Редактировать/добавить регистраторы/камеры", command=print('0'))
-    cfgmenu.add_command(label="Настрока программы", command=print('0'))
-    cfgmenu.add_separator()
-    cfgmenu.add_command(label="Exit", command=root.quit)
-
-    menubar.add_cascade(label="Настройки", menu=cfgmenu)
-
-    testmenu = Menu(menubar, tearoff=0)
-    testmenu.add_command(label="Вывод всех регистраторов", command=print('0'))
-    testmenu.add_command(label="Проверка доступности регистраторов", command=TestConnect)
-    testmenu.add_separator()
-    testmenu.add_command(label="Проверка потока видеорегистарора", command=lambda: TestConnect.check(tk.Tk()))
-    testmenu.add_command(label="Тестирование левого потока", command=print('0'))
-
-    menubar.add_cascade(label="Тестирование", menu=testmenu)
-
-    helpmenu = Menu(menubar, tearoff=0)
-    helpmenu.add_command(label="Параметры запуска", command=print('0'))
-    helpmenu.add_command(label="О программе", command=print('0'))
-
-    menubar.add_cascade(label="Помощь", menu=helpmenu)
-
-    root.config(menu=menubar)
-
+    TopMenu(root)
     snap = GetSnap()
     app = MainFrame(root)
     root.title("ViewCam ПФР")
