@@ -1,7 +1,8 @@
-import os, sys, subprocess, cv2, sqlite3, time
+import os, sys, subprocess, cv2, sqlite3
 import tkinter as tk
-from tkinter import ttk, PhotoImage, Menu
-from PIL import ImageTk, Image
+from tkinter import ttk, Menu
+from PIL import ImageTk, Image, ImageDraw, ImageFont
+import numpy as np
 
 
 class DBInOu:
@@ -91,7 +92,7 @@ class Scrollable(tk.Frame):
 class GetSnap:
     def get_images(self, rtsp_url, cam):
         img = f'SnapShot/{cam}'
-        ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-y', '-i', rtsp_url, '-frames', '1', '-f', 'image2', img]
+        ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-y', '-i', rtsp_url, '-frames', '2', '-f', 'image2', img]
         subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
@@ -153,7 +154,11 @@ class MainFrame(tk.Frame):
         self.snap = snap
 
         self.main_frame()
-        self.bottom_frame()
+        try:
+            if sys.argv[1] == '-debug_console':
+                self.bottom_frame()
+        except IndexError:
+            print('')
 
     def update_area_cams(self):
         taskkill = ['taskkill', '/IM', 'ffmpeg.exe', '/F']
@@ -169,12 +174,38 @@ class MainFrame(tk.Frame):
             url = 'NotSupport'
         return url
 
+    '''
+    Not my function
+    '''
+
+    def put_text_pil(self, img: np.array, txt: str):
+        im = Image.fromarray(img)
+
+        font_size = 24
+        font = ImageFont.truetype('RussoOne-Regular.ttf', size=font_size)
+
+        draw = ImageDraw.Draw(im)
+        # здесь узнаем размеры сгенерированного блока текста
+        w, h = draw.textsize(txt, font=font)
+
+        y_pos = 10
+        im = Image.fromarray(img)
+        draw = ImageDraw.Draw(im)
+
+        # теперь можно центрировать текст
+        draw.text((int((img.shape[1] - w) / 2), y_pos), txt, fill='rgb(0, 0, 0)', font=font)
+
+        img = np.asarray(im)
+
+        return img
+
     def rtsp_cam(self, title_cams, url_cams):
         try:
             cam_stream_0 = cv2.VideoCapture(url_cams)
             while True:
                 cam_0, frame_0 = cam_stream_0.read()
-                cv2.imshow(title_cams, frame_0)
+
+                cv2.imshow('ViewCam PFR', self.put_text_pil(frame_0, title_cams))
                 if cv2.waitKey(1) == ord('q'):
                     break
             cam_stream_0.release()
@@ -222,9 +253,7 @@ class MainFrame(tk.Frame):
                                           name="frame_%s_%s" % (cam, step))
                         frame.grid(column=col, row=2 + row, padx=3, pady=3)
                         try:
-                            pill_image = Image.open(
-                                'C:\\Users\\002AbdulkhalikovMA\\PycharmProjects\\V-PY_PFR\\SnapShot\\%s_%s_%s.jpg' % (
-                                    code, cam, step))
+                            pill_image = Image.open(os.getcwd() + '\\SnapShot\\%s_%s_%s.jpg' % (code, cam, step))
                             pill_image = pill_image.resize((200, 200), Image.ANTIALIAS)
                             globals()['pill_image_%s_%s_%s' % (code, cam, step)] = ImageTk.PhotoImage(pill_image)
 
@@ -237,10 +266,11 @@ class MainFrame(tk.Frame):
                             print(f'Error: {code} Image Not Found')
                             print(f'Stream: {url}')
                             pass
-                        button = tk.Button(tabs,
-                                           command=lambda area_name=area_name, url=url: self.rtsp_cam(area_name, url),
+                        tit = ' камера %s_%s' % (cam, step)
+                        button = ttk.Button(tabs,
+                                           command=lambda area_name=area_name + tit, url=url: self.rtsp_cam(area_name, url),
                                            text="Камера %s_%s" % (cam, step),
-                                           bg='#aaaaff', name="button_%s_%s" % (cam, step))
+                                           name="button_%s_%s" % (cam, step))
                         button.grid(column=col, row=3 + row, padx=3, pady=3)
                         if col == 4:
                             row += 3
@@ -270,7 +300,7 @@ class MainFrame(tk.Frame):
             comboExample.current(0)
             comboExample.bind("<<ComboboxSelected>>", self.return_cams)
 
-            update = tk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), bd=0, compound=tk.TOP)
+            update = ttk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), compound=tk.TOP)
             update.grid(column=1, row=1, padx=3, pady=3)
             app.pack(fill=tk.BOTH)
         else:
@@ -309,42 +339,99 @@ class TestConnect(tk.Toplevel):
         list_cams = self.db.get_cams('test')
         r = 1
         c = 0
-        #tk.Label(cam, text='id').grid(column=0, row=0)
-        #tk.Label(cam, text='code').grid(column=1, row=0)
-        tk.Label(cam, text='ip').grid(column=0, row=0)
-        tk.Label(cam, text='port').grid(column=1, row=0)
-        #tk.Label(cam, text='login').grid(column=4, row=0)
-        #tk.Label(cam, text='pass').grid(column=5, row=0)
-        #tk.Label(cam, text='cams').grid(column=6, row=0)
-        #tk.Label(cam, text='method').grid(column=7, row=0)
-        #tk.Label(cam, text='id_area').grid(column=8, row=0)
-        tk.Label(cam, text='Test_conn').grid(column=2, row=0)
+        cc = 0
+        tk.Label(cam, text='IP Адрес').grid(column=0, row=0)
+        tk.Label(cam, text='Порт').grid(column=1, row=0)
+        tk.Label(cam, text='Состояние').grid(column=2, row=0)
+
         for rows in list_cams:
+            if r > 20:
+                tk.Label(cam, text='IP Адрес').grid(column=3, row=0)
+                tk.Label(cam, text='Порт').grid(column=4, row=0)
+                tk.Label(cam, text='Состояние').grid(column=5, row=0)
+                cc = 3
+                r = 1
             for row in rows:
-                tk.Label(cam, text=row).grid(column=c, row=r)
+                tk.Label(cam, text=row).grid(column=c+cc, row=r)
                 c += 1
-            print('Testing ' + rows[0])
             if os.system("ping -n 1 " + rows[0]) == 0:
-                ttk.Label(cam, text='Ok', foreground='green').grid(column=c, row=r)
+                ttk.Label(cam, text='Good', foreground='green').grid(column=c+cc, row=r)
             else:
-                ttk.Label(cam, text='Error', foreground='red').grid(column=c, row=r)
+                ttk.Label(cam, text='Error', foreground='red').grid(column=c+cc, row=r)
             c = 0
             r += 1
+
         cam.pack(fill=tk.BOTH)
         scrollable_body.update()
         self.title("Проверка регистраторов")
-        self.geometry("550x800+300+50")
+        self.geometry("350x450+300+50")
+        self.resizable(0, 0)
         self.grab_set()
         self.focus_set()
+
+    def probe_file(self, filename):
+        app_ffprobe = tk.Frame(self, name='apps')
+        app_ffprobe.pack(expand=1, fill=tk.BOTH)
+        scroll = Scrollable(app_ffprobe, width=16)
+        ffprobe = tk.Frame(scroll)
+
+        cmnd = ['ffmpeg/bin/ffprobe.exe', '-v', 'error', '-show_format', '-show_streams', filename]
+        p = subprocess.Popen(cmnd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate()
+
+        #ttk.Button(ffprobe, text='Назад', command=lambda: TestConnect('check')).grid(column=1, row=0)
+
+        ttk.Label(ffprobe, text="==========output==========").grid(column=0, row=0)
+        ttk.Label(ffprobe, text=out).grid(column=0, row=1)
+        if err:
+            ttk.Label(ffprobe, text="========= error ========").grid(column=0, row=2)
+            ttk.Label(ffprobe, text=err).grid(column=0, row=3)
+
+        self.title("Проверка потока видеорегистарора")
+        self.geometry("800x650+200+50")
+        self.grab_set()
+        self.focus_set()
+
+        ffprobe.pack(expand=1, fill=tk.Y)
+        scroll.update()
 
     def check(self):
         app = tk.Frame(self, name='app')
         app.pack(expand=1, fill=tk.BOTH)
+        scroll = Scrollable(app, width=16)
+        add_edit_cams_scroll = tk.Frame(scroll)
+
+        list_cams = db.get_cams('*')
+        r = 1
+        ttk.Label(add_edit_cams_scroll, text='Код района').grid(column=0, row=0)
+        ttk.Label(add_edit_cams_scroll, text='IP Адрес').grid(column=1, row=0)
+        ttk.Label(add_edit_cams_scroll, text='Порт').grid(column=2, row=0)
+        ttk.Label(add_edit_cams_scroll, text='ID Района').grid(column=3, row=0)
+        ttk.Label(add_edit_cams_scroll, text='').grid(column=4, row=0)
+        for rows in list_cams:
+            ttk.Label(add_edit_cams_scroll, text=rows[1]).grid(column=0, row=r)
+            ttk.Label(add_edit_cams_scroll, text=rows[2]).grid(column=1, row=r)
+            ttk.Label(add_edit_cams_scroll, text=rows[3]).grid(column=2, row=r)
+            ttk.Label(add_edit_cams_scroll, text=rows[8]).grid(column=3, row=r)
+            ttk.Button(add_edit_cams_scroll, text='Test',
+                       command=lambda
+                           ip=rows[2],
+                           port=rows[3],
+                           login=rows[4],
+                           password=rows[5],
+                           type_conn=rows[7],
+                           num_cams='1':
+                       self.probe_file(MainFrame.rtsp_url(self, ip, port, login, password, type_conn, num_cams))
+                       ).grid(column=4, row=r)
+            r += 1
 
         self.title("Проверка потока видеорегистарора")
-        self.geometry("550x800+300+50")
+        self.geometry("650x400+300+50")
         self.grab_set()
         self.focus_set()
+
+        add_edit_cams_scroll.pack(expand=1, fill=tk.Y)
+        scroll.update()
 
     def about_frame(self):
         help_frame = tk.Frame(self, name='app')
@@ -439,8 +526,17 @@ class TestConnect(tk.Toplevel):
         ttk.Entry(add_edit_cams_scroll).grid(column=4, row=1)
         ttk.Entry(add_edit_cams_scroll).grid(column=5, row=1)
         ttk.Entry(add_edit_cams_scroll).grid(column=6, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=7, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=8, row=1)
+
+        combo = ttk.Combobox(add_edit_cams_scroll, values=['NetSurveillance', 'WebService', 'none'], state="readonly")
+        combo.grid(column=7, row=1)
+        combo.current(0)
+
+        list_area = self.db.get_area('dict')
+        comboExample = ttk.Combobox(add_edit_cams_scroll, values=list(list_area.values()), state="readonly")
+        comboExample.grid(column=8, row=1)
+        comboExample.current(0)
+        #comboExample.bind("<<ComboboxSelected>>", self.return_area)
+
         ttk.Button(add_edit_cams_scroll, text='Добавить').grid(column=10, row=1)
         for rows in list_cams:
             for row in rows:
