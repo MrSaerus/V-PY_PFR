@@ -26,9 +26,9 @@ class DBInOu:
 
     def get_cams(self, id_area):
         if id_area == '*':
-            self.c.execute("SELECT * FROM cams")
+            self.c.execute("SELECT * FROM cams ORDER BY id DESC")
         elif id_area == 'test':
-            self.c.execute("SELECT ip, port FROM cams")
+            self.c.execute("SELECT ip, port FROM cams ORDER BY id DESC")
         else:
             self.c.execute("SELECT * FROM cams WHERE id_area = (?)", [id_area])
         rows = self.c.fetchall()
@@ -63,6 +63,10 @@ class DBInOu:
         self.c.execute('''DELETE FROM area WHERE id = ?''', [id])
         self.connect.commit()
 
+    def delete_cams(self, id):
+        self.c.execute('''DELETE FROM cams WHERE id = ?''', [id])
+        self.connect.commit()
+
 class StdoutRedirector(object):
     def __init__(self, text_widget):
         self.text_space = text_widget
@@ -94,9 +98,11 @@ class Scrollable(tk.Frame):
 
 class GetSnap:
     def get_images(self, rtsp_url, cam):
-        img = f'SnapShot/{cam}'
-        ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-y', '-i', rtsp_url, '-frames', '2', '-f', 'image2', img]
-        subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ffmpeg_patch = 'ffmpeg/bin/ffmpeg.exe'
+        if os.path.exists(ffmpeg_patch):
+            img = f'SnapShot/{cam}'
+            ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-y', '-i', rtsp_url, '-frames', '2', '-f', 'image2', img]
+            subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 class TopMenu(tk.Frame):
@@ -170,7 +176,8 @@ class MainFrame(tk.Frame):
 
     def rtsp_url(self, ip, port, login, password, type_conn, num_cams):
         if type_conn == 'NetSurveillance':
-            url = f'rtsp://{ip}:{port}/user={login}&password={password}&channel={num_cams}&stream=1.sdp?real_stream--rtp-caching=100'
+            url = f'rtsp://{ip}:{port}/user={login}&password={password}&' \
+                  f'channel={num_cams}&stream=1.sdp?real_stream--rtp-caching=100'
         elif type_conn == 'WebService':
             url = f'rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1'
         else:
@@ -217,81 +224,92 @@ class MainFrame(tk.Frame):
             print('Error: connection timeout')
 
     def return_cams(self, event):
-        if type(event) == str:
-            area_name = globals()['AreaNameTempest']
-        else:
-            area_name = event.widget.get()
-            globals()['AreaNameTempest'] = area_name
         app = tk.Frame(root, name='app')
         app.pack(expand=1, fill=tk.BOTH)
         scrollable_body = Scrollable(app, width=16)
         tabs = tk.Frame(scrollable_body)
 
-        list_area = self.db.get_area('dict')
-        id_area = list(list_area.keys())[list(list_area.values()).index(area_name)]
+        try:
+            if type(event) == str:
+                area_name = globals()['AreaNameTempest']
+            else:
+                area_name = event.widget.get()
+                globals()['AreaNameTempest'] = area_name
+            list_area = self.db.get_area('dict')
+            id_area = list(list_area.keys())[list(list_area.values()).index(area_name)]
+        except KeyError:
+            id_area = '0'
+
         cam = 1
         step = 0
         col = 0
         row = 0
-        row_area = self.db.get_cams(id_area)
-        for rows in row_area:
-            id = rows[0]
-            code = rows[1]
-            ip = rows[2]
-            port = rows[3]
-            login = rows[4]
-            password = rows[5]
-            num_cams = rows[6]
-            type_conn = rows[7]
 
-            if os.system("ping -n 1 " + ip) == 0:
-                print('Info: connected to ' + ip)
-                if self.rtsp_url(ip, port, login, password, type_conn, cam) != 'NotSupport':
-                    while cam < num_cams + 1:
-                        url = self.rtsp_url(ip, port, login, password, type_conn, cam)
-                        img = f'{code}_{cam}_{step}.jpg'
-                        snap.get_images(url, img)
+        if self.db.get_cams(id_area):
+            row_area = self.db.get_cams(id_area)
+            for rows in row_area:
+                id = rows[0]
+                code = rows[1]
+                ip = rows[2]
+                port = rows[3]
+                login = rows[4]
+                password = rows[5]
+                num_cams = rows[6]
+                type_conn = rows[7]
 
-                        frame = ttk.Frame(tabs, width=200, height=200, style='TNotebook',
-                                          name="frame_%s_%s" % (cam, step))
-                        frame.grid(column=col, row=2 + row, padx=3, pady=3)
-                        try:
-                            pill_image = Image.open(os.getcwd() + '\\SnapShot\\%s_%s_%s.jpg' % (code, cam, step))
-                            pill_image = pill_image.resize((200, 200), Image.ANTIALIAS)
-                            globals()['pill_image_%s_%s_%s' % (code, cam, step)] = ImageTk.PhotoImage(pill_image)
+                if os.system("ping -n 1 " + ip) == 0:
+                    print('Info: connected to ' + ip)
+                    if self.rtsp_url(ip, port, login, password, type_conn, cam) != 'NotSupport':
+                        while cam < num_cams + 1:
+                            url = self.rtsp_url(ip, port, login, password, type_conn, cam)
+                            img = f'{code}_{cam}_{step}.jpg'
+                            snap.get_images(url, img)
 
-                            globals()['lable_%s_%s_%s' % (code, cam, step)] = tk.Label(frame, width=200, height=200,
-                                                                                       image=globals()[
-                                                                                           'pill_image_%s_%s_%s' % (
-                                                                                               code, cam, step)])
-                            globals()['lable_%s_%s_%s' % (code, cam, step)].pack(fill=tk.BOTH)
-                        except FileNotFoundError:
-                            print(f'Error: {code} Image Not Found')
-                            print(f'Stream: {url}')
-                            pass
-                        tit = ' камера %s_%s' % (cam, step)
-                        button = ttk.Button(tabs,
-                                           command=lambda area_name=area_name + tit, url=url: self.rtsp_cam(area_name, url),
-                                           text="Камера %s_%s" % (cam, step),
-                                           name="button_%s_%s" % (cam, step))
-                        button.grid(column=col, row=3 + row, padx=3, pady=3)
-                        if col == 4:
-                            row += 3
-                            col = 0
-                        else:
-                            col += 1
-                        cam += 1
-                    step += 1
-                    cam = 1
-                    tk.Label(tabs, text="Cams supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
+                            frame = ttk.Frame(tabs, width=200, height=200, style='TNotebook',
+                                              name="frame_%s_%s" % (cam, step))
+                            frame.grid(column=col, row=2 + row, padx=3, pady=3)
+                            try:
+                                pill_image = Image.open(os.getcwd() + '\\SnapShot\\%s_%s_%s.jpg' % (code, cam, step))
+                                pill_image = pill_image.resize((200, 200), Image.ANTIALIAS)
+                                globals()['pill_image_%s_%s_%s' % (code, cam, step)] = ImageTk.PhotoImage(pill_image)
+
+                                globals()['lable_%s_%s_%s' % (code, cam, step)] = tk.Label(frame, width=200, height=200,
+                                                                                           image=globals()[
+                                                                                               'pill_image_%s_%s_%s' % (
+                                                                                                   code, cam, step)])
+                                globals()['lable_%s_%s_%s' % (code, cam, step)].pack(fill=tk.BOTH)
+                            except FileNotFoundError:
+                                print(f'Error: {code} Image Not Found')
+                                print(f'Stream: {url}')
+                                pass
+                            tit = ' камера %s_%s' % (cam, step)
+                            button = ttk.Button(tabs,
+                                                command=lambda area_name=area_name + tit, url=url: self.rtsp_cam(
+                                                    area_name, url),
+                                                text="Камера %s_%s" % (cam, step),
+                                                name="button_%s_%s" % (cam, step))
+                            button.grid(column=col, row=3 + row, padx=3, pady=3)
+                            if col == 4:
+                                row += 3
+                                col = 0
+                            else:
+                                col += 1
+                            cam += 1
+                        step += 1
+                        cam = 1
+                        tk.Label(tabs, text="Cams supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
+                    else:
+                        print('Error: Cams not supported')
+                        tk.Label(tabs, text="Cams not supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
                 else:
-                    print('Error: Cams not supported')
-                    tk.Label(tabs, text="Cams not supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
-            else:
-                print('Error: connection to ' + ip + ' timeout')
-                tk.Label(tabs, text='Error: connection to ' + ip + ' timeout', name="ror").grid(column=0, row=0, padx=3, pady=3)
+                    print('Error: connection to ' + ip + ' timeout')
+                    tk.Label(tabs, text='Ошибка подключения к адресу ' + ip, name="ror").grid(column=0, row=0,
+                                                                                                    padx=3, pady=3)
+                tabs.pack(expand=1, fill=tk.Y)
+                scrollable_body.update()
+        else:
+            tk.Label(tabs, text="Камеры отсутствуют в базе данных", name="fl").grid(column=0, row=0, padx=3, pady=3)
             tabs.pack(expand=1, fill=tk.Y)
-            scrollable_body.update()
 
     def main_frame(self):
         app = tk.Frame(root, width=50)
@@ -305,10 +323,12 @@ class MainFrame(tk.Frame):
 
             update = ttk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), compound=tk.TOP)
             update.grid(column=1, row=1, padx=3, pady=3)
+            update = ttk.Button(app, text="Обновить MainFrame", command=lambda: __name__, compound=tk.TOP)
+            update.grid(column=2, row=1, padx=3, pady=3)
             app.pack(fill=tk.BOTH)
         else:
             tk.Label(app, text="Отсутствуют записи в базе данных").grid(column=0, row=0)
-            app.pack(fill=tk.BOTH)
+            app.pack(expand=1, fill=tk.Y)
 
     def bottom_frame(self):
         console = tk.Frame()
@@ -373,10 +393,6 @@ class TestConnect(tk.Toplevel):
         self.focus_set()
 
     def probe_file(self, filename):
-        cmnd = ['ffmpeg/bin/ffprobe.exe', '-v', 'error', '-show_format', '-show_streams', filename]
-        p = subprocess.Popen(cmnd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = p.communicate()
-
         app_ffprobe = tk.Frame(self, name='apps')
 
         scrollbar = tk.Scrollbar(app_ffprobe)
@@ -385,11 +401,22 @@ class TestConnect(tk.Toplevel):
         out_text = tk.Text(app_ffprobe)
         out_text.pack(side=tk.BOTTOM, fill=tk.BOTH)
 
-        out_text.insert(tk.END, "==========Output==========\n")
-        out_text.insert(tk.END, out)
-        if err:
-            out_text.insert(tk.END, "========= Error ========\n")
-            out_text.insert(tk.END, err)
+        ffmpeg_patch = 'ffmpeg/bin/ffprobe.exe'
+
+        if os.path.exists(ffmpeg_patch):
+            ffmpeg = [ffmpeg_patch, '-v', 'error', '-show_format', '-show_streams', filename]
+            p = subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, err = p.communicate()
+
+            out_text.insert(tk.END, "==========Output==========\n")
+            out_text.insert(tk.END, out)
+            if err:
+                out_text.insert(tk.END, "========= Error ========\n")
+                out_text.insert(tk.END, err)
+        else:
+            out_text.insert(tk.END, "==========Не установлен ffprobe=========="
+                                    "\n ffprobe необходимо скачать по адресу https://ffmpeg.org/download.html "
+                                    "\n и распаковать в папку с программой")
 
         out_text.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=out_text.yview)
@@ -510,15 +537,6 @@ class TestConnect(tk.Toplevel):
         add_edit_area_scroll.pack(expand=1, fill=tk.Y)
         scroll.update()
 
-    def delete_area(self, id):
-        self.db.delete_area(id)
-        self.add_edit_area()
-
-    def add_area(self, entry_1, entry_2):
-        self.db.add_area(entry_1, entry_2)
-        self.add_edit_area()
-
-
     def add_edit_cams(self):
         add_edit = tk.Frame(self, name='add_edit')
         add_edit.pack(expand=1, fill=tk.BOTH)
@@ -540,29 +558,44 @@ class TestConnect(tk.Toplevel):
         ttk.Label(add_edit_cams_scroll, text='ID Района').grid(column=8, row=0)
         ttk.Label(add_edit_cams_scroll, text='Добавить').grid(column=10, row=0)
         ttk.Label(add_edit_cams_scroll, text='*').grid(column=0, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=1, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=2, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=3, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=4, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=5, row=1)
-        ttk.Entry(add_edit_cams_scroll).grid(column=6, row=1)
 
-        combo = ttk.Combobox(add_edit_cams_scroll, values=['NetSurveillance', 'WebService', 'none'], state="readonly")
-        combo.grid(column=7, row=1)
-        combo.current(0)
+        self.entry_1 = ttk.Entry(add_edit_cams_scroll)
+        self.entry_1.grid(column=1, row=1)
+        self.entry_2 = ttk.Entry(add_edit_cams_scroll)
+        self.entry_2.grid(column=2, row=1)
+        self.entry_3 = ttk.Entry(add_edit_cams_scroll)
+        self.entry_3.grid(column=3, row=1)
+        self.entry_4 = ttk.Entry(add_edit_cams_scroll)
+        self.entry_4.grid(column=4, row=1)
+        self.entry_5 = ttk.Entry(add_edit_cams_scroll)
+        self.entry_5.grid(column=5, row=1)
+        self.entry_6 = ttk.Entry(add_edit_cams_scroll)
+        self.entry_6.grid(column=6, row=1)
+
+        self.combo = ttk.Combobox(add_edit_cams_scroll, values=['NetSurveillance', 'WebService', 'none'], state="readonly")
+        self.combo.grid(column=7, row=1)
+        self.combo.current(0)
 
         list_area = self.db.get_area('dict')
-        comboExample = ttk.Combobox(add_edit_cams_scroll, values=list(list_area.values()), state="readonly")
-        comboExample.grid(column=8, row=1)
-        comboExample.current(0)
-        #comboExample.bind("<<ComboboxSelected>>", self.return_area)
+        self.comboExample = ttk.Combobox(add_edit_cams_scroll, values=list(list_area.values()), state="readonly")
+        self.comboExample.grid(column=8, row=1)
+        self.comboExample.current(0)
 
-        ttk.Button(add_edit_cams_scroll, text='Добавить').grid(column=10, row=1)
+        ttk.Button(add_edit_cams_scroll, text='Добавить', command=lambda:
+            self.add_cams(self.entry_1.get(),
+                          self.entry_2.get(),
+                          self.entry_3.get(),
+                          self.entry_4.get(),
+                          self.entry_5.get(),
+                          self.entry_6.get(),
+                          self.combo.get(),
+                          list(list_area.keys())[list(list_area.values()).index(self.comboExample.get())])).grid(column=10, row=1)
+
         for rows in list_cams:
             for row in rows:
                 ttk.Label(add_edit_cams_scroll, text=row).grid(column=c, row=r)
                 c += 1
-            ttk.Button(add_edit_cams_scroll, text='Удалить').grid(column=c + 1, row=r)
+            ttk.Button(add_edit_cams_scroll, text='Удалить', command=lambda id = rows[0]: self.delete_cams(id)).grid(column=c + 1, row=r)
             c = 0
             r += 1
 
@@ -573,6 +606,22 @@ class TestConnect(tk.Toplevel):
 
         add_edit_cams_scroll.pack(expand=1, fill=tk.Y)
         scroll.update()
+
+    def delete_area(self, id):
+        self.db.delete_area(id)
+        self.add_edit_area()
+
+    def delete_cams(self, id):
+        self.db.delete_cams(id)
+        self.add_edit_cams()
+
+    def add_area(self, entry_1, entry_2):
+        self.db.add_area(entry_1, entry_2)
+        self.add_edit_area()
+
+    def add_cams(self, code, ip, port, login, password, num_cams, type_conn, id_area):
+        self.db.add_cams(code, ip, port, login, password, num_cams, type_conn, id_area)
+        self.add_edit_cams()
 
 
 if __name__ == "__main__":
