@@ -43,7 +43,7 @@ class DBInOu:
                 dict_areas[row[0]] = '%s' % row[2]
             return dict_areas
         elif switch == 'all':
-            self.c.execute('''SELECT * FROM area''')
+            self.c.execute('''SELECT * FROM area ORDER BY id DESC''')
             return self.c.fetchall()
         else:
             self.c.execute('''SELECT * FROM area where id like (?)''', [switch])
@@ -59,6 +59,9 @@ class DBInOu:
                             [code, ip, port, login, password, num_cams, type_conn, id_area])
         self.connect.commit()
 
+    def delete_area(self, id):
+        self.c.execute('''DELETE FROM area WHERE id = ?''', [id])
+        self.connect.commit()
 
 class StdoutRedirector(object):
     def __init__(self, text_widget):
@@ -370,30 +373,33 @@ class TestConnect(tk.Toplevel):
         self.focus_set()
 
     def probe_file(self, filename):
-        app_ffprobe = tk.Frame(self, name='apps')
-        app_ffprobe.pack(expand=1, fill=tk.BOTH)
-        scroll = Scrollable(app_ffprobe, width=16)
-        ffprobe = tk.Frame(scroll)
-
         cmnd = ['ffmpeg/bin/ffprobe.exe', '-v', 'error', '-show_format', '-show_streams', filename]
         p = subprocess.Popen(cmnd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
 
-        #ttk.Button(ffprobe, text='Назад', command=lambda: TestConnect('check')).grid(column=1, row=0)
+        app_ffprobe = tk.Frame(self, name='apps')
 
-        ttk.Label(ffprobe, text="==========output==========").grid(column=0, row=0)
-        ttk.Label(ffprobe, text=out).grid(column=0, row=1)
+        scrollbar = tk.Scrollbar(app_ffprobe)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        out_text = tk.Text(app_ffprobe)
+        out_text.pack(side=tk.BOTTOM, fill=tk.BOTH)
+
+        out_text.insert(tk.END, "==========Output==========\n")
+        out_text.insert(tk.END, out)
         if err:
-            ttk.Label(ffprobe, text="========= error ========").grid(column=0, row=2)
-            ttk.Label(ffprobe, text=err).grid(column=0, row=3)
+            out_text.insert(tk.END, "========= Error ========\n")
+            out_text.insert(tk.END, err)
+
+        out_text.config(yscrollcommand=scrollbar.set)
+        scrollbar.config(command=out_text.yview)
 
         self.title("Проверка потока видеорегистарора")
-        self.geometry("800x650+200+50")
+        self.geometry("650x600+200+50")
         self.grab_set()
         self.focus_set()
 
-        ffprobe.pack(expand=1, fill=tk.Y)
-        scroll.update()
+        app_ffprobe.pack(expand=1, fill=tk.Y)
 
     def check(self):
         app = tk.Frame(self, name='app')
@@ -403,17 +409,19 @@ class TestConnect(tk.Toplevel):
 
         list_cams = db.get_cams('*')
         r = 1
-        ttk.Label(add_edit_cams_scroll, text='Код района').grid(column=0, row=0)
-        ttk.Label(add_edit_cams_scroll, text='IP Адрес').grid(column=1, row=0)
-        ttk.Label(add_edit_cams_scroll, text='Порт').grid(column=2, row=0)
-        ttk.Label(add_edit_cams_scroll, text='ID Района').grid(column=3, row=0)
-        ttk.Label(add_edit_cams_scroll, text='').grid(column=4, row=0)
+        padx = 35
+        pady = 5
+        ttk.Label(add_edit_cams_scroll, text='Код района').grid(column=0, row=0, padx=padx, pady=pady)
+        ttk.Label(add_edit_cams_scroll, text='IP Адрес').grid(column=1, row=0, padx=padx, pady=pady)
+        ttk.Label(add_edit_cams_scroll, text='Порт').grid(column=2, row=0, padx=padx, pady=pady)
+        ttk.Label(add_edit_cams_scroll, text='ID Района').grid(column=3, row=0, padx=padx, pady=pady)
+        ttk.Label(add_edit_cams_scroll, text='').grid(column=4, row=0, padx=padx, pady=pady)
         for rows in list_cams:
-            ttk.Label(add_edit_cams_scroll, text=rows[1]).grid(column=0, row=r)
-            ttk.Label(add_edit_cams_scroll, text=rows[2]).grid(column=1, row=r)
-            ttk.Label(add_edit_cams_scroll, text=rows[3]).grid(column=2, row=r)
-            ttk.Label(add_edit_cams_scroll, text=rows[8]).grid(column=3, row=r)
-            ttk.Button(add_edit_cams_scroll, text='Test',
+            ttk.Label(add_edit_cams_scroll, text=rows[1]).grid(column=0, row=r, padx=padx, pady=pady)
+            ttk.Label(add_edit_cams_scroll, text=rows[2]).grid(column=1, row=r, padx=padx, pady=pady)
+            ttk.Label(add_edit_cams_scroll, text=rows[3]).grid(column=2, row=r, padx=padx, pady=pady)
+            ttk.Label(add_edit_cams_scroll, text=rows[8]).grid(column=3, row=r, padx=padx, pady=pady)
+            ttk.Button(add_edit_cams_scroll, text='Протестировать',
                        command=lambda
                            ip=rows[2],
                            port=rows[3],
@@ -427,6 +435,7 @@ class TestConnect(tk.Toplevel):
 
         self.title("Проверка потока видеорегистарора")
         self.geometry("650x400+300+50")
+        self.resizable(0, 0)
         self.grab_set()
         self.focus_set()
 
@@ -480,14 +489,16 @@ class TestConnect(tk.Toplevel):
         entry_2 = ttk.Entry(add_edit_area_scroll)
         entry_2.grid(column=2, row=1)
 
-        button = ttk.Button(add_edit_area_scroll, text='Добавить', name="btn_1")
+        button = ttk.Button(add_edit_area_scroll, text='Добавить', name="btn_1",
+                            command=lambda: self.add_area(entry_1.get(), entry_2.get()))
         button.grid(column=3, row=1)
         for rows in list_areas:
             for row in rows:
                 label_1 = tk.Label(add_edit_area_scroll, text=row)
                 label_1.grid(column=c, row=r)
                 c += 1
-            button = ttk.Button(add_edit_area_scroll, text='Удалить', name="btn_%d" % r)
+            button = ttk.Button(add_edit_area_scroll, text='Удалить', name="btn_%d" % r, command=lambda id = rows[0]:
+                                self.delete_area(id))
             button.grid(column=c, row=r)
             c = 0
             r += 1
@@ -498,6 +509,15 @@ class TestConnect(tk.Toplevel):
 
         add_edit_area_scroll.pack(expand=1, fill=tk.Y)
         scroll.update()
+
+    def delete_area(self, id):
+        self.db.delete_area(id)
+        self.add_edit_area()
+
+    def add_area(self, entry_1, entry_2):
+        self.db.add_area(entry_1, entry_2)
+        self.add_edit_area()
+
 
     def add_edit_cams(self):
         add_edit = tk.Frame(self, name='add_edit')
@@ -563,4 +583,5 @@ if __name__ == "__main__":
     app = MainFrame(root)
     root.title("ViewCam ПФР")
     root.geometry("1200x720+1+1")
+    root.resizable(0, 0)
     root.mainloop()
