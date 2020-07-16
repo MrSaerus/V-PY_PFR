@@ -157,12 +157,11 @@ class TopMenu(tk.Frame):
         testmenu.add_command(label="Проверка доступности регистраторов", command=self.regs)
         testmenu.add_separator()
         testmenu.add_command(label="Проверка потока видеорегистарора", command=self.check)
-        testmenu.add_command(label="Тестирование левого потока")
+        testmenu.add_command(label="Тестирование левого потока", command=self.check_another)
 
         menubar.add_cascade(label="Тестирование", menu=testmenu)
 
         helpmenu = Menu(menubar, tearoff=0)
-        # helpmenu.add_command(label="Параметры запуска", command=lambda: print('0'))
         helpmenu.add_command(label="О программе", command=self.about_frame)
 
         menubar.add_cascade(label="Помощь", menu=helpmenu)
@@ -184,6 +183,9 @@ class TopMenu(tk.Frame):
     def check(self):
         TestConnect('check')
 
+    def check_another(self):
+        TestConnect('check_another')
+
     def cfg(self):
         TestConnect('config_frame')
 
@@ -195,11 +197,14 @@ class MainFrame(tk.Frame):
         self.snap = snap
 
         self.main_frame()
-        try:
-            if sys.argv[1] == '-debug_console':
-                self.bottom_frame()
-        except IndexError:
-            print('')
+        if always_debug_mode_cfg == 'True':
+            self.bottom_frame()
+        else:
+            try:
+                if sys.argv[1] == '-debug_console':
+                    self.bottom_frame()
+            except IndexError:
+                print('IndexError')
 
     def update_area_cams(self):
         taskkill = ['taskkill', '/IM', 'ffmpeg.exe', '/F']
@@ -216,11 +221,11 @@ class MainFrame(tk.Frame):
             url = 'NotSupport'
         return url
 
-    '''
-    Not my function
-    '''
-
     def put_text_pil(self, img: np.array, txt: str):
+        '''
+            Not my function
+        '''
+
         im = Image.fromarray(img)
 
         font_size = 24
@@ -378,6 +383,8 @@ class TestConnect(tk.Toplevel):
             self.registrators()
         elif menu == 'check':
             self.check()
+        elif menu == 'check_another':
+            self.check_another()
         elif menu == 'about':
             self.about_frame()
         elif menu == 'edit_area':
@@ -530,6 +537,30 @@ class TestConnect(tk.Toplevel):
 
         self.title("Проверка потока видеорегистарора")
         self.geometry("650x400+300+50")
+        self.resizable(0, 0)
+        self.grab_set()
+        self.focus_set()
+
+        add_edit_cams_scroll.pack(expand=1, fill=tk.Y)
+        scroll.update()
+
+    def check_another(self):
+        app = tk.Frame(self, name='app')
+        app.pack(expand=1, fill=tk.BOTH)
+        scroll = Scrollable(app, width=16)
+        add_edit_cams_scroll = tk.Frame(scroll)
+        padx = 30
+        pady = 5
+        ttk.Label(add_edit_cams_scroll, text='Код района').grid(column=0, row=0, padx=padx, pady=pady)
+        entry_1 = ttk.Entry(add_edit_cams_scroll, width=40)
+        entry_1.grid(column=1, row=0, padx=padx, pady=pady)
+        ttk.Button(add_edit_cams_scroll, text='Протестировать',
+                       command=lambda:
+                       self.probe_file(entry_1.get())
+                       ).grid(column=2, row=0)
+
+        self.title("Проверка потока")
+        self.geometry("600x400+300+50")
         self.resizable(0, 0)
         self.grab_set()
         self.focus_set()
