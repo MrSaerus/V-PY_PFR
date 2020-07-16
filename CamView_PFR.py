@@ -1,8 +1,36 @@
-import os, sys, subprocess, cv2, sqlite3
+import os, sys, subprocess, cv2, sqlite3, configparser
 import tkinter as tk
 from tkinter import ttk, Menu
 from PIL import ImageTk, Image, ImageDraw, ImageFont
 import numpy as np
+
+
+class Configurations:
+    def __init__(self):
+        config_file = configparser.ConfigParser()
+        patch_cfg = 'config.cfg'
+        if os.path.exists(patch_cfg):
+            config_file.read(patch_cfg)
+            globals()['always_debug_mode_cfg'] = config_file['Base']['always_debug_mode']
+            globals()['default_font_overlay_cfg'] = config_file['Advanced']['default_font_overlay']
+        else:
+            config_file['Base'] = {'always_debug_mode': 'False'}
+            config_file['Advanced'] = {'default_font_overlay': 'RussoOne-Regular.ttf'}
+            with open(patch_cfg, 'w') as configfile:
+                config_file.write(configfile)
+
+    def write_config(self, param_1, param_2):
+        config_file = configparser.ConfigParser()
+        patch_cfg = 'config.cfg'
+        config_file.read(patch_cfg)
+        config_file['Base'] = {'always_debug_mode': param_1}
+        config_file['Advanced'] = {'default_font_overlay': param_2}
+        with open(patch_cfg, 'w') as configfile:
+            config_file.write(configfile)
+        config_file.read(patch_cfg)
+        globals()['always_debug_mode_cfg'] = config_file['Base']['always_debug_mode']
+        globals()['default_font_overlay_cfg'] = config_file['Advanced']['default_font_overlay']
+        TestConnect.config_frame(self)
 
 
 class DBInOu:
@@ -67,6 +95,7 @@ class DBInOu:
         self.c.execute('''DELETE FROM cams WHERE id = ?''', [id])
         self.connect.commit()
 
+
 class StdoutRedirector(object):
     def __init__(self, text_widget):
         self.text_space = text_widget
@@ -117,7 +146,7 @@ class TopMenu(tk.Frame):
                             command=self.add_edit_area)
         cfgmenu.add_command(label="Редактировать/добавить регистраторы/камеры",
                             command=self.add_edit_cams)
-        cfgmenu.add_command(label="Настрока программы", command=lambda: print('0'))
+        cfgmenu.add_command(label="Настрока программы", command=self.cfg)
         cfgmenu.add_separator()
         cfgmenu.add_command(label="Exit", command=root.quit)
 
@@ -154,6 +183,9 @@ class TopMenu(tk.Frame):
 
     def check(self):
         TestConnect('check')
+
+    def cfg(self):
+        TestConnect('config_frame')
 
 
 class MainFrame(tk.Frame):
@@ -239,6 +271,7 @@ class MainFrame(tk.Frame):
             id_area = list(list_area.keys())[list(list_area.values()).index(area_name)]
         except KeyError:
             id_area = '0'
+            area_name = ''
 
         cam = 1
         step = 0
@@ -323,8 +356,7 @@ class MainFrame(tk.Frame):
 
             update = ttk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), compound=tk.TOP)
             update.grid(column=1, row=1, padx=3, pady=3)
-            update = ttk.Button(app, text="Обновить MainFrame", command=lambda: __name__, compound=tk.TOP)
-            update.grid(column=2, row=1, padx=3, pady=3)
+
             app.pack(fill=tk.BOTH)
         else:
             tk.Label(app, text="Отсутствуют записи в базе данных").grid(column=0, row=0)
@@ -352,6 +384,42 @@ class TestConnect(tk.Toplevel):
             self.add_edit_area()
         elif menu == 'edit_cams':
             self.add_edit_cams()
+        elif menu == 'config_frame':
+            self.config_frame()
+
+    def config_frame(self):
+        cfg_frame = tk.Frame(self, name='cfg')
+        cfg_frame.pack(expand=1, fill=tk.BOTH)
+
+        title_1 = ttk.Label(cfg_frame, text='Отображать консоль сообщение?')
+        title_1.place(x=10, y=10)
+        title_2 = ttk.Label(cfg_frame, text='Стиль ширифта наложенного текста')
+        title_2.place(x=10, y=50)
+
+        self.combo_1 = ttk.Combobox(cfg_frame, values=[always_debug_mode_cfg, 'True', 'False'], state="readonly")
+        self.combo_1.place(x=300, y=10)
+        self.combo_1.current(0)
+
+        self.combo_2 = ttk.Combobox(cfg_frame, values=[default_font_overlay_cfg, 'RussoOne-Regular.ttf', 'RussoOne-Regular.ttf'], state="readonly")
+        self.combo_2.place(x=300, y=50)
+        self.combo_2.current(0)
+
+        button_1 = ttk.Button(cfg_frame, text='Сохранить', command=lambda: Configurations.write_config(
+                                                                                self,
+                                                                                self.combo_1.get(),
+                                                                                self.combo_2.get()))
+        button_1.place(x=370, y=350)
+
+        button_2 = ttk.Button(cfg_frame, text='Выход', command=self.destroy)
+        button_2.place(x=450, y=350)
+
+        cfg_frame.pack()
+
+        self.title("Настройки")
+        self.geometry("550x400+300+50")
+        self.resizable(0, 0)
+        self.grab_set()
+        self.focus_set()
 
     def registrators(self):
         app = tk.Frame(self, name='app')
@@ -626,6 +694,7 @@ class TestConnect(tk.Toplevel):
 
 if __name__ == "__main__":
     root = tk.Tk()
+    Configurations()
     db = DBInOu()
     TopMenu(root)
     snap = GetSnap()
