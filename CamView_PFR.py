@@ -1,8 +1,8 @@
 import os, sys, subprocess, cv2, sqlite3, configparser
 import tkinter as tk
+import numpy as np
 from tkinter import ttk, Menu
 from PIL import ImageTk, Image, ImageDraw, ImageFont
-import numpy as np
 
 
 class Configurations:
@@ -129,6 +129,8 @@ class GetSnap:
     def get_images(self, rtsp_url, cam):
         ffmpeg_patch = 'ffmpeg/bin/ffmpeg.exe'
         if os.path.exists(ffmpeg_patch):
+            if not os.path.exists('SnapShot'):
+                os.makedirs('SnapShot')
             img = f'SnapShot/{cam}'
             ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-y', '-i', rtsp_url, '-frames', '2', '-f', 'image2', img]
             subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -217,6 +219,8 @@ class MainFrame(tk.Frame):
                   f'channel={num_cams}&stream=1.sdp?real_stream--rtp-caching=100'
         elif type_conn == 'WebService':
             url = f'rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1'
+        elif type_conn == 'test':
+            url = ip
         else:
             url = 'NotSupport'
         return url
@@ -294,12 +298,25 @@ class MainFrame(tk.Frame):
                 password = rows[5]
                 num_cams = rows[6]
                 type_conn = rows[7]
+                #rtsp: // wowzaec2demo.streamlock.net / vod / mp4: BigBuckBunny_115k.mov
+                if ip.split('/')[0][0:4] == 'rtsp':
+                    ip_is_url = True
+                    ip_to_url = ip
+                    ip = ip.split('/')[2]
+                    cam = 1
+                    num_cams = 1
+                else:
+                    ip_to_url = ip
+                    ip_is_url = False
 
                 if os.system("ping -n 1 " + ip) == 0:
                     print('Info: connected to ' + ip)
                     if self.rtsp_url(ip, port, login, password, type_conn, cam) != 'NotSupport':
                         while cam < num_cams + 1:
-                            url = self.rtsp_url(ip, port, login, password, type_conn, cam)
+                            if ip_is_url == True:
+                                url = ip_to_url
+                            else:
+                                url = self.rtsp_url(ip, port, login, password, type_conn, cam)
                             img = f'{code}_{cam}_{step}.jpg'
                             snap.get_images(url, img)
 
@@ -459,13 +476,14 @@ class TestConnect(tk.Toplevel):
             c = 0
             r += 1
 
-        cam.pack(fill=tk.BOTH)
-        scrollable_body.update()
         self.title("Проверка регистраторов")
         self.geometry("350x450+300+50")
         self.resizable(0, 0)
         self.grab_set()
         self.focus_set()
+
+        cam.pack(fill=tk.BOTH)
+        scrollable_body.update()
 
     def probe_file(self, filename):
         app_ffprobe = tk.Frame(self, name='apps')
@@ -575,7 +593,9 @@ class TestConnect(tk.Toplevel):
         text.insert(1.0, "Программа для просмотра камер в районах. "
                          "\nПараметры запуска:"
                          "\n    -debug_console - запускает режим вывода информации в консоль программы."
-                         "\n    -gen - генерирует тестовую информацию в базе данных.")
+                         "\n    -gen - генерирует тестовую информацию в базе данных."
+                         "\nРабота в программе:"
+                         "\n    -Чтобы закрыть просмотр потока, необходимо нащать q")
         text.configure(state='disabled')
         text.pack()
 
@@ -671,7 +691,7 @@ class TestConnect(tk.Toplevel):
         self.entry_6 = ttk.Entry(add_edit_cams_scroll)
         self.entry_6.grid(column=6, row=1)
 
-        self.combo = ttk.Combobox(add_edit_cams_scroll, values=['NetSurveillance', 'WebService', 'none'], state="readonly")
+        self.combo = ttk.Combobox(add_edit_cams_scroll, values=['NetSurveillance', 'WebService', 'none', 'test'], state="readonly")
         self.combo.grid(column=7, row=1)
         self.combo.current(0)
 
