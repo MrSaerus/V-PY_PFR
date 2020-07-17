@@ -134,6 +134,13 @@ class GetSnap:
             img = f'SnapShot/{cam}'
             ffmpeg = ['ffmpeg/bin/ffmpeg.exe', '-y', '-i', rtsp_url, '-frames', '2', '-f', 'image2', img]
             subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        else:
+            app_ffprobe = tk.Frame(tk.Tk(), name='add_edit')
+            app_ffprobe.pack(expand=1, fill=tk.BOTH)
+            out_text = ttk.Label(app_ffprobe, text='Ошибка, ffmpeg не установлен')
+            out_text.pack(side=tk.BOTTOM, fill=tk.BOTH)
+            app_ffprobe.pack(expand=1, fill=tk.Y)
+            return 'stop'
 
 
 class TopMenu(tk.Frame):
@@ -318,6 +325,8 @@ class MainFrame(tk.Frame):
                             else:
                                 url = self.rtsp_url(ip, port, login, password, type_conn, cam)
                             img = f'{code}_{cam}_{step}.jpg'
+                            if snap.get_images(url, img) == 'stop':
+                                break
                             snap.get_images(url, img)
 
                             frame = ttk.Frame(tabs, width=200, height=200, style='TNotebook',
