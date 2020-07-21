@@ -276,6 +276,7 @@ class MainFrame(tk.Frame):
         app.pack(expand=1, fill=tk.BOTH)
         scrollable_body = Scrollable(app, width=16)
         tabs = tk.Frame(scrollable_body)
+        informing = tk.Frame(scrollable_body)
 
         try:
             if type(event) == str:
@@ -297,6 +298,7 @@ class MainFrame(tk.Frame):
         if self.db.get_cams(id_area):
             row_area = self.db.get_cams(id_area)
             for rows in row_area:
+
                 id = rows[0]
                 code = rows[1]
                 ip = rows[2]
@@ -305,7 +307,7 @@ class MainFrame(tk.Frame):
                 password = rows[5]
                 num_cams = rows[6]
                 type_conn = rows[7]
-                #rtsp: // wowzaec2demo.streamlock.net / vod / mp4: BigBuckBunny_115k.mov
+
                 if ip.split('/')[0][0:4] == 'rtsp':
                     ip_is_url = True
                     ip_to_url = ip
@@ -339,8 +341,8 @@ class MainFrame(tk.Frame):
 
                                 globals()['lable_%s_%s_%s' % (code, cam, step)] = tk.Label(frame, width=200, height=200,
                                                                                            image=globals()[
-                                                                                               'pill_image_%s_%s_%s' % (
-                                                                                                   code, cam, step)])
+                                                                                               'pill_image_%s_%s_%s' %
+                                                                                               (code, cam, step)])
                                 globals()['lable_%s_%s_%s' % (code, cam, step)].pack(fill=tk.BOTH)
                             except FileNotFoundError:
                                 print(f'Error: {code} Image Not Found')
@@ -359,21 +361,26 @@ class MainFrame(tk.Frame):
                             else:
                                 col += 1
                             cam += 1
+                            tk.Label(informing, text="Loading: cam %s_%s..." % (cam, step), name="ror").grid(column=0, row=0, padx=3, pady=3)
+                            informing.pack(expand=1, fill=tk.Y)
+                            scrollable_body.update()
                         step += 1
                         cam = 1
-                        tk.Label(tabs, text="Cams supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
                     else:
                         print('Error: Cams not supported')
-                        tk.Label(tabs, text="Cams not supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
+                        tk.Label(informing, text="Cams not supported", name="ror").grid(column=0, row=0, padx=3, pady=3)
                 else:
                     print('Error: connection to ' + ip + ' timeout')
-                    tk.Label(tabs, text='Ошибка подключения к адресу ' + ip, name="ror").grid(column=0, row=0,
-                                                                                                    padx=3, pady=3)
-                tabs.pack(expand=1, fill=tk.Y)
+                    tk.Label(informing, text='Ошибка подключения к адресу ' + ip, name="ror").grid(column=0, row=0, padx=3, pady=3)
+                tk.Label(informing, text="Loading: cam %s_%s" % (cam, step), name="ror").grid(column=0, row=0, padx=3, pady=3)
+                informing.pack(expand=1, fill=tk.Y)
                 scrollable_body.update()
         else:
             tk.Label(tabs, text="Камеры отсутствуют в базе данных", name="fl").grid(column=0, row=0, padx=3, pady=3)
-            tabs.pack(expand=1, fill=tk.Y)
+        tk.Label(informing, text="All cams loaded", name="ror").grid(column=0, row=0, padx=3, pady=3)
+        informing.pack(expand=1, fill=tk.Y)
+        tabs.pack(expand=1, fill=tk.Y)
+        scrollable_body.update()
 
     def main_frame(self):
         app = tk.Frame(root, width=50)
@@ -381,9 +388,9 @@ class MainFrame(tk.Frame):
             list_area = self.db.get_area('dict')
             tk.Label(app, text="Выберите район").grid(column=0, row=0)
             comboExample = ttk.Combobox(app, values=list(list_area.values()), state="readonly", name="box")
-            comboExample.grid(column=0, row=1, padx=3, pady=3)
             comboExample.current(0)
             comboExample.bind("<<ComboboxSelected>>", self.return_cams)
+            comboExample.grid(column=0, row=1, padx=3, pady=3)
 
             update = ttk.Button(app, text="Обновить", command=lambda: self.return_cams('yui'), compound=tk.TOP)
             update.grid(column=1, row=1, padx=3, pady=3)
@@ -460,39 +467,42 @@ class TestConnect(tk.Toplevel):
         scrollable_body = Scrollable(app, width=16)
         cam = tk.Frame(scrollable_body)
 
-        list_cams = self.db.get_cams('test')
-        r = 1
-        c = 0
-        cc = 0
-        tk.Label(cam, text='IP Адрес').grid(column=0, row=0)
-        tk.Label(cam, text='Порт').grid(column=1, row=0)
-        tk.Label(cam, text='Состояние').grid(column=2, row=0)
-
-        for rows in list_cams:
-            if r > 20:
-                tk.Label(cam, text='IP Адрес').grid(column=3, row=0)
-                tk.Label(cam, text='Порт').grid(column=4, row=0)
-                tk.Label(cam, text='Состояние').grid(column=5, row=0)
-                cc = 3
-                r = 1
-            for row in rows:
-                tk.Label(cam, text=row).grid(column=c+cc, row=r)
-                c += 1
-            if os.system("ping -n 1 " + rows[0]) == 0:
-                ttk.Label(cam, text='Good', foreground='green').grid(column=c+cc, row=r)
-            else:
-                ttk.Label(cam, text='Error', foreground='red').grid(column=c+cc, row=r)
-            c = 0
-            r += 1
-
         self.title("Проверка регистраторов")
         self.geometry("350x450+300+50")
         self.resizable(0, 0)
         self.grab_set()
         self.focus_set()
 
-        cam.pack(fill=tk.BOTH)
-        scrollable_body.update()
+        list_cams = self.db.get_cams('test')
+        r = 1
+        cc = 0
+        tk.Label(cam, text='Адрес').grid(column=0, row=0)
+        tk.Label(cam, text='Порт').grid(column=1, row=0)
+        tk.Label(cam, text='Состояние').grid(column=2, row=0)
+
+        for rows in list_cams:
+            if r > 20:
+                tk.Label(cam, text='Адрес').grid(column=3, row=0)
+                tk.Label(cam, text='Порт').grid(column=4, row=0)
+                tk.Label(cam, text='Состояние').grid(column=5, row=0)
+                cc = 3
+                r = 1
+            if rows[0].split('/')[0] == 'rtsp:':
+                addr = rows[0].split('/')[2]
+            else:
+                addr = rows[0]
+            tk.Label(cam, text=addr).grid(column=0 + cc, row=r)
+            tk.Label(cam, text=rows[1]).grid(column=1 + cc, row=r)
+
+            if os.system("ping -n 1 " + rows[0]) == 0:
+                ttk.Label(cam, text='Good', foreground='green').grid(column=2+cc, row=r)
+            else:
+                ttk.Label(cam, text='Error', foreground='red').grid(column=2+cc, row=r)
+            r += 1
+            app.pack(expand=1, fill=tk.BOTH)
+            app.update()
+            cam.pack(fill=tk.BOTH)
+            scrollable_body.update()
 
     def probe_file(self, filename):
         app_ffprobe = tk.Frame(self, name='apps')
@@ -505,20 +515,35 @@ class TestConnect(tk.Toplevel):
 
         ffmpeg_patch = 'ffmpeg/bin/ffprobe.exe'
 
-        if os.path.exists(ffmpeg_patch):
-            ffmpeg = [ffmpeg_patch, '-v', 'error', '-show_format', '-show_streams', filename]
-            p = subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            out, err = p.communicate()
-
-            out_text.insert(tk.END, "==========Output==========\n")
-            out_text.insert(tk.END, out)
-            if err:
-                out_text.insert(tk.END, "========= Error ========\n")
-                out_text.insert(tk.END, err)
+        if filename.split('/')[0] == 'rtsp:' or filename.split('/')[0] == 'http:' or filename.split('/')[0] == 'https:':
+            ip = filename.split('/')[2]
         else:
-            out_text.insert(tk.END, "==========Не установлен ffprobe=========="
-                                    "\n ffprobe необходимо скачать по адресу https://ffmpeg.org/download.html "
-                                    "\n и распаковать в папку с программой")
+            ip = filename
+
+        if os.system("ping -n 1 " + ip) == 0:
+            if os.path.exists(ffmpeg_patch):
+
+                out_text.insert(tk.END, "Please wait while the stream is checked\n")
+                out_text.config(yscrollcommand=scrollbar.set)
+                app_ffprobe.pack(expand=1, fill=tk.Y)
+                app_ffprobe.update_idletasks()
+
+                ffmpeg = [ffmpeg_patch, '-v', 'error', '-show_format', '-show_streams', filename]
+                p = subprocess.Popen(ffmpeg, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                out, err = p.communicate()
+
+                out_text.insert(tk.END, "==========Output==========\n")
+                out_text.insert(tk.END, out)
+                if err:
+                    out_text.insert(tk.END, "========= Error ========\n")
+                    out_text.insert(tk.END, err)
+            else:
+                out_text.insert(tk.END, "==========Не установлен ffprobe=========="
+                                        "\n ffprobe необходимо скачать по адресу https://ffmpeg.org/download.html "
+                                        "\n и распаковать в папку с программой")
+        else:
+            out_text.insert(tk.END, "==========Ошибка соединения=========="
+                                        "\n Нет доступа к ресурсу")
 
         out_text.config(yscrollcommand=scrollbar.set)
         scrollbar.config(command=out_text.yview)
@@ -538,16 +563,20 @@ class TestConnect(tk.Toplevel):
 
         list_cams = db.get_cams('*')
         r = 1
-        padx = 35
+        padx = 20
         pady = 5
         ttk.Label(add_edit_cams_scroll, text='Код района').grid(column=0, row=0, padx=padx, pady=pady)
-        ttk.Label(add_edit_cams_scroll, text='IP Адрес').grid(column=1, row=0, padx=padx, pady=pady)
+        ttk.Label(add_edit_cams_scroll, text='Адрес').grid(column=1, row=0, padx=padx, pady=pady)
         ttk.Label(add_edit_cams_scroll, text='Порт').grid(column=2, row=0, padx=padx, pady=pady)
         ttk.Label(add_edit_cams_scroll, text='ID Района').grid(column=3, row=0, padx=padx, pady=pady)
         ttk.Label(add_edit_cams_scroll, text='').grid(column=4, row=0, padx=padx, pady=pady)
         for rows in list_cams:
             ttk.Label(add_edit_cams_scroll, text=rows[1]).grid(column=0, row=r, padx=padx, pady=pady)
-            ttk.Label(add_edit_cams_scroll, text=rows[2]).grid(column=1, row=r, padx=padx, pady=pady)
+            if rows[2].split('/')[0] == 'rtsp:':
+                addr = rows[2].split('/')[2]
+            else:
+                addr = rows[2]
+            ttk.Label(add_edit_cams_scroll, text=addr).grid(column=1, row=r, padx=padx, pady=pady)
             ttk.Label(add_edit_cams_scroll, text=rows[3]).grid(column=2, row=r, padx=padx, pady=pady)
             ttk.Label(add_edit_cams_scroll, text=rows[8]).grid(column=3, row=r, padx=padx, pady=pady)
             ttk.Button(add_edit_cams_scroll, text='Протестировать',
