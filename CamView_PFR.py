@@ -494,7 +494,7 @@ class TestConnect(tk.Toplevel):
             tk.Label(cam, text=addr).grid(column=0 + cc, row=r)
             tk.Label(cam, text=rows[1]).grid(column=1 + cc, row=r)
 
-            if os.system("ping -n 1 " + rows[0]) == 0:
+            if os.system("ping -n 1 " + addr) == 0:
                 ttk.Label(cam, text='Good', foreground='green').grid(column=2+cc, row=r)
             else:
                 ttk.Label(cam, text='Error', foreground='red').grid(column=2+cc, row=r)
