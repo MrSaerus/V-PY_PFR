@@ -1,4 +1,4 @@
-import os, sys, subprocess, cv2, sqlite3, configparser
+import os, sys, subprocess, cv2, sqlite3, configparser, math
 import tkinter as tk
 import numpy as np
 from tkinter import ttk, Menu
@@ -55,7 +55,7 @@ class DBInOu:
     def get_cams(self, id_area):
         if id_area == '*':
             self.c.execute("SELECT * FROM cams ORDER BY id DESC")
-        elif id_area == 'test':
+        elif id_area == 'Self':
             self.c.execute("SELECT ip, port FROM cams ORDER BY id DESC")
         else:
             self.c.execute("SELECT * FROM cams WHERE id_area = (?)", [id_area])
@@ -162,7 +162,7 @@ class TopMenu(tk.Frame):
         menubar.add_cascade(label="Настройки", menu=cfgmenu)
 
         testmenu = Menu(menubar, tearoff=0)
-        testmenu.add_command(label="Вывод всех регистраторов", command=lambda: print('0'))
+        #testmenu.add_command(label="Вывод всех регистраторов", command=lambda: print('0'))
         testmenu.add_command(label="Проверка доступности регистраторов", command=self.regs)
         testmenu.add_separator()
         testmenu.add_command(label="Проверка потока видеорегистарора", command=self.check)
@@ -204,8 +204,8 @@ class MainFrame(tk.Frame):
         super().__init__(root)
         self.db = db
         self.snap = snap
-
         self.main_frame()
+        
         if always_debug_mode_cfg == 'True':
             self.bottom_frame()
         else:
@@ -226,7 +226,7 @@ class MainFrame(tk.Frame):
                   f'channel={num_cams}&stream=1.sdp?real_stream--rtp-caching=100'
         elif type_conn == 'WebService':
             url = f'rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1'
-        elif type_conn == 'test':
+        elif type_conn == 'Self':
             url = ip
         else:
             url = 'NotSupport'
@@ -468,18 +468,19 @@ class TestConnect(tk.Toplevel):
         cam = tk.Frame(scrollable_body)
 
         self.title("Проверка регистраторов")
-        self.geometry("350x450+300+50")
+        #self.geometry("350x450+300+50")
         self.resizable(0, 0)
         self.grab_set()
         self.focus_set()
 
-        list_cams = self.db.get_cams('test')
+        list_cams = self.db.get_cams('Self')
         r = 1
         cc = 0
         tk.Label(cam, text='Адрес').grid(column=0, row=0)
         tk.Label(cam, text='Порт').grid(column=1, row=0)
         tk.Label(cam, text='Состояние').grid(column=2, row=0)
-
+        rr = math.floor(root.winfo_screenheight()/25)
+        height = rr*10
         for rows in list_cams:
             if r > 20:
                 tk.Label(cam, text='Адрес').grid(column=3, row=0)
@@ -499,9 +500,21 @@ class TestConnect(tk.Toplevel):
             else:
                 ttk.Label(cam, text='Error', foreground='red').grid(column=2+cc, row=r)
             r += 1
+
+            if len(str(rows[0])) > len('Адрес'): a = len(str(rows[0]))
+            else: a = len('Адрес')
+            b = len('Порт')
+            if len(str(rows[1])) > len('Состояние'): c = len(str(rows[1]))
+            else: c = len('Состояние')
+            if cc==3: len_width = (a + b + c) * 4
+            else: len_width = (a + b + c) * 2
+
+            width = len_width*2
+            self.geometry("%dx%d+300+50" % (width, height))
+
             app.pack(expand=1, fill=tk.BOTH)
             app.update()
-            cam.pack(fill=tk.BOTH)
+            cam.pack(fill=tk.Y)
             scrollable_body.update()
 
     def probe_file(self, filename):
@@ -628,17 +641,24 @@ class TestConnect(tk.Toplevel):
         help_frame = tk.Frame(self, name='app')
         help_frame.pack(expand=1, fill=tk.BOTH)
         text = tk.Text(help_frame)
-        text.insert(1.0, "Программа для просмотра камер в районах. "
+        text.insert(1.0, "Программа для просмотра камер. "
                          "\nПараметры запуска:"
                          "\n    -debug_console - запускает режим вывода информации в консоль программы."
                          "\n    -gen - генерирует тестовую информацию в базе данных."
-                         "\nРабота в программе:"
-                         "\n    -Чтобы закрыть просмотр потока, необходимо нащать q")
+                         "\n\nРабота в программе:"
+                         "\n    -Чтобы закрыть просмотр потока, необходимо нащать q"
+                         "\n\nВарианты потоков:"
+                         "\nНа текущий момент программа работает с сылками вида:"
+                         "\n    NetSurveillance:"
+                         "\n    rtsp://{ip}:{port}/user={login}&password={password}&channel={num_cams}&stream=1.sdp"
+                         "\n    WebService:"
+                         "\n    rtsp://{login}:{password}@{ip}:{port}/cam/realmonitor?channel={num_cams}&subtype=1"
+                         "\n\nМожно использовать и свои ссылки, для этого ссылку нужно ввести в ячейку IP Адрес и выбрать тип Self")
         text.configure(state='disabled')
         text.pack()
 
         self.title("Помощь")
-        self.geometry("550x400+300+50")
+        self.geometry("650x400+300+50")
         self.grab_set()
         self.focus_set()
 
@@ -686,8 +706,13 @@ class TestConnect(tk.Toplevel):
             button.grid(column=c, row=r)
             c = 0
             r += 1
+            height = 45+10*r
+            if height < root.winfo_screenheight()-100:
+                self.geometry("400x%d+1+1" % height)
+            else:
+                self.geometry("1200x800+1+1")
         self.title("Редактировать/добавить районы")
-        self.geometry("400x800+300+50")
+        #self.geometry("400x800+300+50")
         self.grab_set()
         self.focus_set()
 
@@ -729,7 +754,7 @@ class TestConnect(tk.Toplevel):
         self.entry_6 = ttk.Entry(add_edit_cams_scroll)
         self.entry_6.grid(column=6, row=1)
 
-        self.combo = ttk.Combobox(add_edit_cams_scroll, values=['NetSurveillance', 'WebService', 'none', 'test'], state="readonly")
+        self.combo = ttk.Combobox(add_edit_cams_scroll, values=['NetSurveillance', 'WebService', 'none', 'Self'], state="readonly")
         self.combo.grid(column=7, row=1)
         self.combo.current(0)
 
@@ -747,17 +772,21 @@ class TestConnect(tk.Toplevel):
                           self.entry_6.get(),
                           self.combo.get(),
                           list(list_area.keys())[list(list_area.values()).index(self.comboExample.get())])).grid(column=10, row=1)
-
         for rows in list_cams:
             for row in rows:
+                if str(row).split('/')[0] == ('rtsp:' or 'http' or 'https'): row = row.split('/')[2]
                 ttk.Label(add_edit_cams_scroll, text=row).grid(column=c, row=r)
                 c += 1
             ttk.Button(add_edit_cams_scroll, text='Удалить', command=lambda id = rows[0]: self.delete_cams(id)).grid(column=c + 1, row=r)
             c = 0
             r += 1
-
+            height = 45+25*r
+            if height < root.winfo_screenheight()-100:
+                self.geometry("1200x%d+1+1" % height)
+            else:
+                self.geometry("1200x800+1+1")
         self.title("Редактировать/добавить районы")
-        self.geometry("1200x800+1+1")
+        #self.geometry("1200x800+1+1")
         self.grab_set()
         self.focus_set()
 
